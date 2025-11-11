@@ -1,7 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"github.com/charmbracelet/log"
+)
 
 func main() {
-	fmt.Println("Hello, World!. We killing scripts with this one.")
+	log.Debug("Cookie 🍪") // won't print anything
+	log.Info("Hello World!")
 }
