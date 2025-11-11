@@ -1,9 +1,20 @@
-.PHONY: build run clean
+.PHONY: build run clean download-nix-portable
 
-build:
+NIX_PORTABLE_VERSION = v012
+NIX_PORTABLE_URL = https://github.com/DavHau/nix-portable/releases/download/$(NIX_PORTABLE_VERSION)/nix-portable-x86_64
+NIX_PORTABLE_PATH = nix-portable-binary
+
+download-nix-portable:
+	@if [ ! -f $(NIX_PORTABLE_PATH) ]; then \
+		echo "Downloading nix-portable..."; \
+		curl -L $(NIX_PORTABLE_URL) -o $(NIX_PORTABLE_PATH); \
+		chmod +x $(NIX_PORTABLE_PATH); \
+	fi
+
+build: download-nix-portable
 	CGO_ENABLED=0 go build -o scriptkiller
 
-run:
+run: download-nix-portable
 	CGO_ENABLED=0 go run .
 
 clean:
