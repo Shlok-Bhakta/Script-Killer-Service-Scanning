@@ -16,14 +16,21 @@ type GosecTool struct {
 	logger *log.Logger
 }
 
+type gosecCWE struct {
+	ID  string `json:"id"`
+	URL string `json:"url"`
+}
+
 type gosecIssue struct {
-	Severity   string `json:"severity"`
-	Confidence string `json:"confidence"`
-	RuleID     string `json:"rule_id"`
-	Details    string `json:"details"`
-	File       string `json:"file"`
-	Code       string `json:"code"`
-	Line       string `json:"line"`
+	Severity   string   `json:"severity"`
+	Confidence string   `json:"confidence"`
+	CWE        gosecCWE `json:"cwe"`
+	RuleID     string   `json:"rule_id"`
+	Details    string   `json:"details"`
+	File       string   `json:"file"`
+	Code       string   `json:"code"`
+	Line       string   `json:"line"`
+	Column     string   `json:"column"`
 }
 
 type gosecOutput struct {
@@ -92,10 +99,15 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 	}
 
 	for _, issue := range gosecResult.Issues {
+		cweInfo := ""
+		if issue.CWE.ID != "" {
+			cweInfo = fmt.Sprintf(" (CWE-%s)", issue.CWE.ID)
+		}
+
 		finding := Finding{
-			Message:    fmt.Sprintf("[%s] %s", issue.RuleID, issue.Details),
-			Location:   fmt.Sprintf("%s:%s", issue.File, issue.Line),
-			Suggestion: issue.Code,
+			Message:    fmt.Sprintf("[%s] %s%s", issue.RuleID, issue.Details, cweInfo),
+			Location:   fmt.Sprintf("%s:%s:%s", issue.File, issue.Line, issue.Column),
+			Suggestion: strings.TrimSpace(issue.Code),
 		}
 
 		switch strings.ToLower(issue.Severity) {
