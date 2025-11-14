@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"scriptkiller/src/nix"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 )
@@ -53,7 +54,9 @@ func (g *GosecTool) GetToolInfo() ToolInfo {
 }
 
 func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
+	startTime := time.Now()
 	toolOut := ToolOutput{
+		ToolName:  g.info.Name,
 		RawOutput: "",
 		Critical:  []Finding{},
 		Warnings:  []Finding{},
@@ -105,9 +108,14 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 		}
 
 		finding := Finding{
+			Severity:   SeverityInfo,
 			Message:    fmt.Sprintf("[%s] %s%s", issue.RuleID, issue.Details, cweInfo),
 			Location:   fmt.Sprintf("%s:%s:%s", issue.File, issue.Line, issue.Column),
 			Suggestion: strings.TrimSpace(issue.Code),
+			Metadata: map[string]string{
+				"rule_id": issue.RuleID,
+				"cwe_id":  issue.CWE.ID,
+			},
 		}
 
 		switch strings.ToLower(issue.Severity) {
@@ -128,6 +136,7 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 
 	g.logger.Info("Gosec scan complete", "critical", len(toolOut.Critical), "warnings", len(toolOut.Warnings), "info", len(toolOut.Info))
 
+	toolOut.Duration = time.Since(startTime).Milliseconds()
 	return toolOut, nil
 }
 

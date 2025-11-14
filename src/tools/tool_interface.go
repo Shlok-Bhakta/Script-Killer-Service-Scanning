@@ -15,19 +15,47 @@ const (
 	ServerityOther   Severity = "other"
 )
 
+func (s Severity) Color() string {
+	switch s {
+	case SeverityCritical:
+		return "\033[1;31m"
+	case SeverityWarning:
+		return "\033[1;33m"
+	case SeverityInfo:
+		return "\033[1;36m"
+	default:
+		return "\033[0m"
+	}
+}
+
+func (s Severity) String() string {
+	return string(s)
+}
+
 type Finding struct {
 	Severity   Severity
 	Message    string
 	Location   string
 	Suggestion string
+	Metadata   map[string]string
 }
 
 type ToolOutput struct {
+	ToolName  string
+	Duration  int64
 	RawOutput string
 	Critical  []Finding
 	Warnings  []Finding
 	Info      []Finding
 	Other     []Finding
+}
+
+func (t *ToolOutput) TotalFindings() int {
+	return len(t.Critical) + len(t.Warnings) + len(t.Info) + len(t.Other)
+}
+
+func (t *ToolOutput) HasIssues() bool {
+	return t.TotalFindings() > 0
 }
 
 // This is the interface that all security tools should implement
@@ -40,4 +68,18 @@ type SecurityTool interface {
 	IsApplicable(language string) bool
 }
 
-// TODO: Add a way to run all tools of x lang and format output into pretty table.
+func RunAllToolsForLanguage(tools []SecurityTool, language string, targetPath string) (map[string]ToolOutput, error) {
+	results := make(map[string]ToolOutput)
+
+	for _, tool := range tools {
+		if tool.IsApplicable(language) {
+			output, err := tool.Run(targetPath)
+			if err != nil {
+				return results, err
+			}
+			results[tool.GetToolInfo().Name] = output
+		}
+	}
+
+	return results, nil
+}
