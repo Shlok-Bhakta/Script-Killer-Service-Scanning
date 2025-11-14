@@ -12,10 +12,13 @@ download-nix-portable:
 	fi
 
 build: download-nix-portable
-	CGO_ENABLED=0 go build -o scriptkiller
+	CGO_ENABLED=0 go build -o bin/scriptkiller ./src
 
 run: download-nix-portable
 	CGO_ENABLED=0 go run ./src
+
+test:
+	CGO_ENABLED=0 go test
 
 clean:
 	rm -f scriptkiller

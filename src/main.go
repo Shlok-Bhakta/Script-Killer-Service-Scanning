@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	// "scriptkiller/src/nix"
@@ -49,6 +50,20 @@ func main() {
 	// if err := nix.RunNixShell([]string{"lolcat", "cowsay"}, "cowsay \"", fType, "\" | lolcat"); err != nil {
 	// 	log.Fatal("Failed to run nix-shell", "error", err)
 	// }
+	args := os.Args[1:]
+	cwd := "."
+	for i, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			fmt.Println("Usage: scriptkiller [options] [path]")
+			fmt.Println("Options:")
+			fmt.Println("  --help, -h: Show this help message")
+			return
+		}
+		if i == len(args)-1 {
+			cwd = arg
+			log.Info("Using cwd", "path", cwd)
+		}
+	}
 
 	tools := []tools.SecurityTool{
 		tools.NewGosecTool(),
@@ -56,6 +71,6 @@ func main() {
 
 	for _, tool := range tools {
 		// toolInfo := tool.GetToolInfo()
-		log.Info(tool.Run("."))
+		log.Info(tool.Run(cwd))
 	}
 }

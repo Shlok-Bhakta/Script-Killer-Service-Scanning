@@ -69,11 +69,7 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 
 	output, err := nix.RunNixShellWithOutput(
 		[]string{"gosec", "go"},
-		"gosec",
-		"-fmt=json",
-		"-no-fail",
-		"-r",
-		absPath,
+		fmt.Sprintf("cd '%s' && gosec -fmt=json -no-fail -quiet ./... 2>/dev/null || gosec -fmt=json -no-fail -quiet ./...", absPath),
 	)
 	if err != nil && len(output) == 0 {
 		g.logger.Error("gosec failed", "error", err)
@@ -82,9 +78,16 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 
 	toolOut.RawOutput = string(output)
 
+	if len(output) == 0 {
+		g.logger.Warn("No output from gosec")
+		return toolOut, nil
+	}
+
+	g.logger.Debug("Gosec raw output", "output", string(output)[:min(500, len(output))])
+
 	var gosecResult gosecOutput
 	if err := json.Unmarshal(output, &gosecResult); err != nil {
-		g.logger.Warn("Failed to parse gosec JSON output", "error", err)
+		g.logger.Warn("Failed to parse gosec JSON output", "error", err, "output_preview", string(output)[:min(200, len(output))])
 		return toolOut, nil
 	}
 
