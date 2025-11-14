@@ -48,7 +48,7 @@ func RunNixShell(packages []string, command string, args ...string) error {
 		return err
 	}
 
-	nixArgs := []string{"nix-shell", "-p"}
+	nixArgs := []string{"nix-shell", "-I", "nixpkgs=https://github.com/NixOS/nixpkgs/archive/91c9a64ce2a84e648d0cf9671274bb9c2fb9ba60.tar.gz", "-p"}
 	nixArgs = append(nixArgs, packages...)
 	nixArgs = append(nixArgs, "--run", command+" "+joinArgs(args))
 
@@ -77,14 +77,14 @@ func RunNixShellWithOutput(packages []string, command string, args ...string) ([
 		return nil, err
 	}
 
-	nixArgs := []string{"nix-shell", "-p"}
+	nixArgs := []string{"nix-shell", "-I", "nixpkgs=https://github.com/NixOS/nixpkgs/archive/91c9a64ce2a84e648d0cf9671274bb9c2fb9ba60.tar.gz", "-p"}
 	nixArgs = append(nixArgs, packages...)
 	nixArgs = append(nixArgs, "--run", command+" "+joinArgs(args))
 
 	log.Info("Running nix-shell with output capture", "packages", packages, "command", command)
 
 	cmd := exec.Command(nixPath, nixArgs...)
-	cmd.Env = append(os.Environ(), "LC_ALL=C")
+	cmd.Env = append(os.Environ(), "LC_ALL=C", "GOTOOLCHAIN=local")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
