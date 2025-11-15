@@ -65,12 +65,12 @@ func main() {
 		}
 	}
 
-	tools := []tools.SecurityTool{
+	tool_arr := []tools.SecurityTool{
 		tools.NewGosecTool(),
 	}
-
-	for _, tool := range tools {
-		// toolInfo := tool.GetToolInfo()
-		log.Info(tool.Run(cwd))
+	tool_out_map, errs := tools.RunAllToolsForLanguage(tool_arr, "go", cwd)	
+	if(len(errs) != 0){
+		log.Error(errs)
 	}
+	log.Info(tool_out_map)
 }

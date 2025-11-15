@@ -1,5 +1,10 @@
 package tools
 
+import (
+	"sync"
+	"time"
+)
+
 type ToolInfo struct {
 	Name string
 	Desc string
@@ -12,7 +17,7 @@ const (
 	SeverityCritical Severity = "critical"
 	SeverityWarning  Severity = "warning"
 	SeverityInfo     Severity = "info"
-	ServerityOther   Severity = "other"
+	SeverityOther    Severity = "other"
 )
 
 func (s Severity) Color() string {
@@ -32,18 +37,45 @@ func (s Severity) String() string {
 	return string(s)
 }
 
+type Location struct {
+	File      string
+	Line      int
+	Column    int
+	EndLine   int
+	EndColumn int
+}
+
+func (l Location) String() string {
+	if l.EndLine > 0 && l.EndColumn > 0 {
+		return l.File + ":" + string(rune(l.Line)) + ":" + string(rune(l.Column)) + "-" + string(rune(l.EndLine)) + ":" + string(rune(l.EndColumn))
+	}
+	if l.Line > 0 && l.Column > 0 {
+		return l.File + ":" + string(rune(l.Line)) + ":" + string(rune(l.Column))
+	}
+	if l.Line > 0 {
+		return l.File + ":" + string(rune(l.Line))
+	}
+	return l.File
+}
+
 type Finding struct {
+	ID         string
 	Severity   Severity
 	Message    string
-	Location   string
+	Location   Location
 	Suggestion string
 	Metadata   map[string]string
+	Suppressed bool
 }
 
 type ToolOutput struct {
 	ToolName  string
 	Duration  int64
+	ExitCode  int
+	Error     error
+	StartTime time.Time
 	RawOutput string
+	RawStderr string
 	Critical  []Finding
 	Warnings  []Finding
 	Info      []Finding
@@ -58,28 +90,36 @@ func (t *ToolOutput) HasIssues() bool {
 	return t.TotalFindings() > 0
 }
 
-// This is the interface that all security tools should implement
-// getToolInfo() is going to be used on the UI side to display tool info and maybe even some settings??
-// Run() is the main function that will be called by the scriptkiller service
-// IsApplicable() is used to determine if the tool is applicable to the language of the file so go tools only run in go projects
 type SecurityTool interface {
 	GetToolInfo() ToolInfo
 	Run(targetPath string) (ToolOutput, error)
 	IsApplicable(language string) bool
+	Validate() error
+	GetConfigSchema() map[string]any
 }
 
-func RunAllToolsForLanguage(tools []SecurityTool, language string, targetPath string) (map[string]ToolOutput, error) {
+func RunAllToolsForLanguage(tools []SecurityTool, language string, targetPath string) (map[string]ToolOutput, []error) {
 	results := make(map[string]ToolOutput)
+	var errors []error
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
 	for _, tool := range tools {
 		if tool.IsApplicable(language) {
-			output, err := tool.Run(targetPath)
-			if err != nil {
-				return results, err
-			}
-			results[tool.GetToolInfo().Name] = output
+			wg.Add(1)
+			go func(t SecurityTool) {
+				defer wg.Done()
+				output, err := t.Run(targetPath)
+				mu.Lock()
+				defer mu.Unlock()
+				if err != nil {
+					errors = append(errors, err)
+				}
+				results[t.GetToolInfo().Name] = output
+			}(tool)
 		}
 	}
 
-	return results, nil
+	wg.Wait()
+	return results, errors
 }

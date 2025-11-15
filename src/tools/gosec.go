@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"scriptkiller/src/nix"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,7 +58,9 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 	startTime := time.Now()
 	toolOut := ToolOutput{
 		ToolName:  g.info.Name,
+		StartTime: startTime,
 		RawOutput: "",
+		RawStderr: "",
 		Critical:  []Finding{},
 		Warnings:  []Finding{},
 		Info:      []Finding{},
@@ -107,15 +110,26 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 			cweInfo = fmt.Sprintf(" (CWE-%s)", issue.CWE.ID)
 		}
 
+		relPath, err := filepath.Rel(absPath, issue.File)
+		if err != nil {
+			relPath = issue.File
+		}
+
+		line, _ := strconv.Atoi(issue.Line)
+		col, _ := strconv.Atoi(issue.Column)
+
 		finding := Finding{
+			ID:         fmt.Sprintf("%s-%s-%s-%s", issue.RuleID, relPath, issue.Line, issue.Column),
 			Severity:   SeverityInfo,
 			Message:    fmt.Sprintf("[%s] %s%s", issue.RuleID, issue.Details, cweInfo),
-			Location:   fmt.Sprintf("%s:%s:%s", issue.File, issue.Line, issue.Column),
+			Location:   Location{File: relPath, Line: line, Column: col},
 			Suggestion: strings.TrimSpace(issue.Code),
 			Metadata: map[string]string{
-				"rule_id": issue.RuleID,
-				"cwe_id":  issue.CWE.ID,
+				"rule_id":    issue.RuleID,
+				"cwe_id":     issue.CWE.ID,
+				"confidence": issue.Confidence,
 			},
+			Suppressed: false,
 		}
 
 		switch strings.ToLower(issue.Severity) {
@@ -129,7 +143,7 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 			finding.Severity = SeverityInfo
 			toolOut.Info = append(toolOut.Info, finding)
 		default:
-			finding.Severity = SeverityInfo
+			finding.Severity = SeverityOther
 			toolOut.Other = append(toolOut.Other, finding)
 		}
 	}
@@ -142,4 +156,32 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 
 func (g *GosecTool) IsApplicable(language string) bool {
 	return language == "go" || language == "Golang"
+}
+
+func (g *GosecTool) Validate() error {
+	output, err := nix.RunNixShellWithOutput(
+		[]string{"gosec"},
+		"gosec --version",
+	)
+	if err != nil {
+		return fmt.Errorf("gosec is not available: %w", err)
+	}
+	g.logger.Debug("gosec version", "output", string(output))
+	return nil
+}
+
+func (g *GosecTool) GetConfigSchema() map[string]any {
+	return map[string]any{
+		"excluded_rules": map[string]any{
+			"type":        "array",
+			"description": "List of gosec rule IDs to exclude (e.g., G101, G204)",
+			"items":       map[string]string{"type": "string"},
+		},
+		"severity_threshold": map[string]any{
+			"type":        "string",
+			"description": "Minimum severity level to report",
+			"enum":        []string{"low", "medium", "high"},
+			"default":     "low",
+		},
+	}
 }
