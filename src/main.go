@@ -67,10 +67,52 @@ func main() {
 
 	tool_arr := []tools.SecurityTool{
 		tools.NewGosecTool(),
+		tools.NewOSVScannerTool(),
 	}
-	tool_out_map, errs := tools.RunAllToolsForLanguage(tool_arr, "go", cwd)	
-	if(len(errs) != 0){
-		log.Error(errs)
+	tool_out_map, errs := tools.RunAllToolsForLanguage(tool_arr, "go", cwd)
+	if len(errs) != 0 {
+		log.Error("Errors occurred", "errors", errs)
 	}
-	log.Info(tool_out_map)
+
+	for toolName, output := range tool_out_map {
+		fmt.Printf("\n=== %s Results ===\n", toolName)
+		fmt.Printf("Duration: %dms\n", output.Duration)
+		fmt.Printf("Total Findings: %d\n\n", output.TotalFindings())
+
+		if len(output.Critical) > 0 {
+			fmt.Printf("CRITICAL (%d):\n", len(output.Critical))
+			for _, f := range output.Critical {
+				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
+				fmt.Printf("    Location: %s\n", f.Location.String())
+				if f.Suggestion != "" {
+					fmt.Printf("    %s\n", f.Suggestion)
+				}
+			}
+			fmt.Println()
+		}
+
+		if len(output.Warnings) > 0 {
+			fmt.Printf("WARNINGS (%d):\n", len(output.Warnings))
+			for _, f := range output.Warnings {
+				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
+				fmt.Printf("    Location: %s\n", f.Location.String())
+				if f.Suggestion != "" {
+					fmt.Printf("    %s\n", f.Suggestion)
+				}
+			}
+			fmt.Println()
+		}
+
+		if len(output.Info) > 0 {
+			fmt.Printf("INFO (%d):\n", len(output.Info))
+			for _, f := range output.Info {
+				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
+				fmt.Printf("    Location: %s\n", f.Location.String())
+				if f.Suggestion != "" {
+					fmt.Printf("    %s\n", f.Suggestion)
+				}
+			}
+			fmt.Println()
+		}
+	}
 }
