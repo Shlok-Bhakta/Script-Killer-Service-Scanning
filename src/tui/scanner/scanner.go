@@ -29,6 +29,7 @@ func New(targetPath string) *Scanner {
 		tools: []tools.SecurityTool{
 			tools.NewGosecTool(),
 			tools.NewOSVScannerTool(),
+			tools.NewGrypeTool(),
 		},
 	}
 }
