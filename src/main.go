@@ -39,71 +39,56 @@ func main() {
 
 	log.Info("Languages detected", "languages", languages)
 
-	languageMap := map[string]string{
-		"Go":         "go",
-		"Python":     "python",
-		"C++":        "cpp",
-		"JavaScript": "javascript",
+	log.Info("Running security scan")
+
+	tool_arr := []tools.SecurityTool{
+		tools.NewGosecTool(),
+		tools.NewOSVScannerTool(),
+	}
+	tool_out_map, errs := tools.RunAllToolsForLanguage(tool_arr, languages, cwd)
+	if len(errs) != 0 {
+		log.Error("Errors occurred", "errors", errs)
 	}
 
-	for lang := range languages {
-		toolLang, ok := languageMap[lang]
-		if !ok {
-			log.Warn("No security tools available for language", "language", lang)
-			continue
+	for toolName, output := range tool_out_map {
+		fmt.Printf("\n=== %s Results ===\n", toolName)
+		fmt.Printf("Duration: %dms\n", output.Duration)
+		fmt.Printf("Total Findings: %d\n\n", output.TotalFindings())
+
+		if len(output.Critical) > 0 {
+			fmt.Printf("CRITICAL (%d):\n", len(output.Critical))
+			for _, f := range output.Critical {
+				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
+				fmt.Printf("    Location: %s\n", f.Location.String())
+				if f.Suggestion != "" {
+					fmt.Printf("    %s\n", f.Suggestion)
+				}
+			}
+			fmt.Println()
 		}
 
-		log.Info("Running security scan", "language", lang)
-
-		tool_arr := []tools.SecurityTool{
-			tools.NewGosecTool(),
-			tools.NewOSVScannerTool(),
+		if len(output.Warnings) > 0 {
+			fmt.Printf("WARNINGS (%d):\n", len(output.Warnings))
+			for _, f := range output.Warnings {
+				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
+				fmt.Printf("    Location: %s\n", f.Location.String())
+				if f.Suggestion != "" {
+					fmt.Printf("    %s\n", f.Suggestion)
+				}
+			}
+			fmt.Println()
 		}
-		tool_out_map, errs := tools.RunAllToolsForLanguage(tool_arr, toolLang, cwd)
-		if len(errs) != 0 {
-			log.Error("Errors occurred", "errors", errs)
-		}
 
-		for toolName, output := range tool_out_map {
-			fmt.Printf("\n=== %s Results for %s ===\n", toolName, lang)
-			fmt.Printf("Duration: %dms\n", output.Duration)
-			fmt.Printf("Total Findings: %d\n\n", output.TotalFindings())
-
-			if len(output.Critical) > 0 {
-				fmt.Printf("CRITICAL (%d):\n", len(output.Critical))
-				for _, f := range output.Critical {
-					fmt.Printf("  [%s] %s\n", f.ID, f.Message)
-					fmt.Printf("    Location: %s\n", f.Location.String())
-					if f.Suggestion != "" {
-						fmt.Printf("    %s\n", f.Suggestion)
-					}
+		if len(output.Info) > 0 {
+			fmt.Printf("INFO (%d):\n", len(output.Info))
+			for _, f := range output.Info {
+				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
+				fmt.Printf("    Location: %s\n", f.Location.String())
+				if f.Suggestion != "" {
+					fmt.Printf("    %s\n", f.Suggestion)
 				}
-				fmt.Println()
 			}
-
-			if len(output.Warnings) > 0 {
-				fmt.Printf("WARNINGS (%d):\n", len(output.Warnings))
-				for _, f := range output.Warnings {
-					fmt.Printf("  [%s] %s\n", f.ID, f.Message)
-					fmt.Printf("    Location: %s\n", f.Location.String())
-					if f.Suggestion != "" {
-						fmt.Printf("    %s\n", f.Suggestion)
-					}
-				}
-				fmt.Println()
-			}
-
-			if len(output.Info) > 0 {
-				fmt.Printf("INFO (%d):\n", len(output.Info))
-				for _, f := range output.Info {
-					fmt.Printf("  [%s] %s\n", f.ID, f.Message)
-					fmt.Printf("    Location: %s\n", f.Location.String())
-					if f.Suggestion != "" {
-						fmt.Printf("    %s\n", f.Suggestion)
-					}
-				}
-				fmt.Println()
-			}
+			fmt.Println()
 		}
 	}
 }
