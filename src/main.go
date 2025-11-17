@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 
+	"scriptkiller/src/mcp"
 	"scriptkiller/src/tui"
 	"scriptkiller/src/tui/scanner"
 
 	"github.com/charmbracelet/log"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 func main() {
@@ -19,6 +21,7 @@ func main() {
 	args := os.Args[1:]
 	cwd := "."
 	noTUI := false
+	mcpPort := 8080
 
 	for i, arg := range args {
 		if arg == "-h" || arg == "--help" {
@@ -26,15 +29,48 @@ func main() {
 			fmt.Println("Options:")
 			fmt.Println("  --help, -h: Show this help message")
 			fmt.Println("  --no-tui: Scan and print results without TUI")
+			fmt.Println("  --mcp-port PORT: Port for MCP server (default: 8080)")
 			return
 		}
 		if arg == "--no-tui" {
 			noTUI = true
 			continue
 		}
-		if i == len(args)-1 && arg != "--no-tui" {
+		if arg == "--mcp-port" && i+1 < len(args) {
+			fmt.Sscanf(args[i+1], "%d", &mcpPort)
+			continue
+		}
+		if i == len(args)-1 && arg != "--no-tui" && arg != "--mcp-port" {
 			cwd = arg
 		}
+	}
+
+	// Find available port starting from mcpPort
+	availablePort := mcp.FindAvailablePort(mcpPort)
+	if availablePort == 0 {
+		log.Warn("Failed to find available port for MCP server")
+	} else {
+		// Install MCP server to opencode.jsonc
+		if err := mcp.InstallToOpenCode(availablePort); err != nil {
+			log.Warn("Failed to install MCP config", "error", err)
+		} else {
+			log.Info("Installed MCP server to opencode.jsonc", "port", availablePort)
+		}
+		defer func() {
+			if err := mcp.UninstallFromOpenCode(); err != nil {
+				log.Warn("Failed to uninstall MCP config", "error", err)
+			}
+		}()
+
+		// Start MCP HTTP server in background
+		mcpServer := mcp.NewMCPServer()
+		httpServer := server.NewStreamableHTTPServer(mcpServer)
+		go func() {
+			log.Info("Starting MCP HTTP server", "port", availablePort)
+			if err := httpServer.Start(fmt.Sprintf(":%d", availablePort)); err != nil {
+				log.Error("MCP server failed", "error", err)
+			}
+		}()
 	}
 
 	if noTUI {

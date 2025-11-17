@@ -1,5 +1,6 @@
 bin/
 scriptkiller
+opencode.jsonc
 
 node_modules/
 npm-debug.log
