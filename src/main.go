@@ -67,6 +67,7 @@ func main() {
 
 	tool_arr := []tools.SecurityTool{
 		tools.NewGosecTool(),
+		tools.NewGrypeTool(),
 		tools.NewOSVScannerTool(),
 	}
 	tool_out_map, errs := tools.RunAllToolsForLanguage(tool_arr, "go", cwd)
