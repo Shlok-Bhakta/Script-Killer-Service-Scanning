@@ -13,13 +13,15 @@ import (
 )
 
 type FileChangeMsg struct {
-	Path string
+	Path               string
+	IsDependencyChange bool
 }
 
 type Watcher struct {
 	watcher        *fsnotify.Watcher
 	targetDir      string
 	ignorePatterns []string
+	depFiles       map[string]bool
 }
 
 func New(targetDir string) (*Watcher, error) {
@@ -34,10 +36,31 @@ func New(targetDir string) (*Watcher, error) {
 		ignorePatterns = append(ignorePatterns, patterns...)
 	}
 
+	depFiles := map[string]bool{
+		"go.mod":            true,
+		"go.sum":            true,
+		"package.json":      true,
+		"package-lock.json": true,
+		"yarn.lock":         true,
+		"pnpm-lock.yaml":    true,
+		"requirements.txt":  true,
+		"Pipfile":           true,
+		"Pipfile.lock":      true,
+		"poetry.lock":       true,
+		"Gemfile":           true,
+		"Gemfile.lock":      true,
+		"Cargo.toml":        true,
+		"Cargo.lock":        true,
+		"composer.json":     true,
+		"composer.lock":     true,
+		"pom.xml":           true,
+	}
+
 	return &Watcher{
 		watcher:        w,
 		targetDir:      targetDir,
 		ignorePatterns: ignorePatterns,
+		depFiles:       depFiles,
 	}, nil
 }
 
@@ -71,6 +94,7 @@ func (w *Watcher) Start(ctx context.Context) tea.Cmd {
 		debounce := time.NewTimer(500 * time.Millisecond)
 		debounce.Stop()
 		pending := false
+		isDependencyChange := false
 
 		for {
 			select {
@@ -85,6 +109,11 @@ func (w *Watcher) Start(ctx context.Context) tea.Cmd {
 					if w.shouldIgnore(event.Name) {
 						continue
 					}
+
+					if w.isDependencyFile(event.Name) {
+						isDependencyChange = true
+					}
+
 					if !pending {
 						pending = true
 						debounce.Reset(500 * time.Millisecond)
@@ -94,7 +123,12 @@ func (w *Watcher) Start(ctx context.Context) tea.Cmd {
 			case <-debounce.C:
 				if pending {
 					pending = false
-					return FileChangeMsg{Path: w.targetDir}
+					msg := FileChangeMsg{
+						Path:               w.targetDir,
+						IsDependencyChange: isDependencyChange,
+					}
+					isDependencyChange = false
+					return msg
 				}
 
 			case err, ok := <-w.watcher.Errors:
@@ -121,6 +155,11 @@ func (w *Watcher) shouldIgnore(path string) bool {
 		}
 	}
 	return false
+}
+
+func (w *Watcher) isDependencyFile(path string) bool {
+	filename := filepath.Base(path)
+	return w.depFiles[filename]
 }
 
 func (w *Watcher) addWatches(dir string) error {

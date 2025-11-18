@@ -16,6 +16,14 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 )
 
+type scanMode int
+
+const (
+	scanModeAll scanMode = iota
+	scanModeCode
+	scanModeDeps
+)
+
 type FindingItem struct {
 	finding tools.Finding
 }
@@ -50,6 +58,7 @@ func (i FindingItem) Description() string {
 type scanCompleteMsg struct {
 	result *scanner.ScanResult
 	err    error
+	mode   scanMode
 }
 
 type Model struct {
@@ -57,17 +66,21 @@ type Model struct {
 	watcher    *watcher.Watcher
 	width      int
 	height     int
-	list       list.Model
-	findings   []tools.Finding
+	codeList   list.Model
+	depsList   list.Model
+	activeTab  int
 	scanning   bool
 	targetPath string
 	ctx        context.Context
 	cancelCtx  context.CancelFunc
 
-	critCount int
-	warnCount int
-	infoCount int
-	scanTime  string
+	codeCritCount int
+	codeWarnCount int
+	codeInfoCount int
+	depsCritCount int
+	depsWarnCount int
+	depsInfoCount int
+	scanTime      string
 }
 
 func NewModel(targetPath string) Model {
@@ -77,14 +90,21 @@ func NewModel(targetPath string) Model {
 	w, _ := watcher.New(targetPath)
 
 	delegate := list.NewDefaultDelegate()
-	l := list.New([]list.Item{}, delegate, 0, 0)
-	l.Title = "Security Findings"
-	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(true)
+	codeList := list.New([]list.Item{}, delegate, 0, 0)
+	codeList.Title = "Code Security Findings"
+	codeList.SetShowStatusBar(true)
+	codeList.SetFilteringEnabled(true)
+
+	depsList := list.New([]list.Item{}, delegate, 0, 0)
+	depsList.Title = "Dependency Vulnerabilities"
+	depsList.SetShowStatusBar(true)
+	depsList.SetFilteringEnabled(true)
 
 	theme := styles.CurrentTheme()
-	l.Styles.Title = theme.S().Title
-	l.Styles.TitleBar = lipgloss.NewStyle().Background(theme.BgBase)
+	codeList.Styles.Title = theme.S().Title
+	codeList.Styles.TitleBar = lipgloss.NewStyle().Background(theme.BgBase)
+	depsList.Styles.Title = theme.S().Title
+	depsList.Styles.TitleBar = lipgloss.NewStyle().Background(theme.BgBase)
 
 	zone.NewGlobal()
 
@@ -93,7 +113,9 @@ func NewModel(targetPath string) Model {
 	return Model{
 		scanner:    s,
 		watcher:    w,
-		list:       l,
+		codeList:   codeList,
+		depsList:   depsList,
+		activeTab:  0,
 		targetPath: absPath,
 		ctx:        ctx,
 		cancelCtx:  cancel,
@@ -111,7 +133,12 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) doScan() tea.Msg {
 	result, err := m.scanner.Scan(m.ctx)
-	return scanCompleteMsg{result: result, err: err}
+	return scanCompleteMsg{result: result, err: err, mode: scanModeAll}
+}
+
+func (m Model) doCodeScan() tea.Msg {
+	result, err := m.scanner.ScanCode(m.ctx)
+	return scanCompleteMsg{result: result, err: err, mode: scanModeCode}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -124,8 +151,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 		listWidth := m.width / 2
-		listHeight := m.height - 6
-		m.list.SetSize(listWidth-4, listHeight-4)
+		listHeight := m.height - 9
+		m.codeList.SetSize(listWidth-4, listHeight-4)
+		m.depsList.SetSize(listWidth-4, listHeight-4)
 
 		return m, nil
 
@@ -149,12 +177,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			m.scanning = true
 			return m, m.doScan
+		case "tab":
+			m.activeTab = (m.activeTab + 1) % 2
+			return m, nil
+		case "1":
+			m.activeTab = 0
+			return m, nil
+		case "2":
+			m.activeTab = 1
+			return m, nil
 		}
 
 	case watcher.FileChangeMsg:
 		if !m.scanning {
 			m.scanning = true
-			return m, tea.Batch(m.doScan, m.watcher.Start(m.ctx))
+			var scanCmd tea.Cmd
+			if msg.IsDependencyChange {
+				scanCmd = m.doScan
+			} else {
+				scanCmd = m.doCodeScan
+			}
+			return m, tea.Batch(scanCmd, m.watcher.Start(m.ctx))
 		}
 		return m, m.watcher.Start(m.ctx)
 
@@ -165,25 +208,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.findings = m.scanner.GetAllFindings()
+		codeFindings, depsFindings := m.scanner.GetFindingsByType()
 
-		items := make([]list.Item, len(m.findings))
-		for i, f := range m.findings {
-			items[i] = FindingItem{finding: f}
+		codeItems := make([]list.Item, len(codeFindings))
+		for i, f := range codeFindings {
+			codeItems[i] = FindingItem{finding: f}
 		}
-		m.list.SetItems(items)
+		m.codeList.SetItems(codeItems)
 
-		m.critCount = 0
-		m.warnCount = 0
-		m.infoCount = 0
-		for _, f := range m.findings {
+		depsItems := make([]list.Item, len(depsFindings))
+		for i, f := range depsFindings {
+			depsItems[i] = FindingItem{finding: f}
+		}
+		m.depsList.SetItems(depsItems)
+
+		m.codeCritCount = 0
+		m.codeWarnCount = 0
+		m.codeInfoCount = 0
+		for _, f := range codeFindings {
 			switch f.Severity {
 			case tools.SeverityCritical:
-				m.critCount++
+				m.codeCritCount++
 			case tools.SeverityWarning:
-				m.warnCount++
+				m.codeWarnCount++
 			case tools.SeverityInfo:
-				m.infoCount++
+				m.codeInfoCount++
+			}
+		}
+
+		m.depsCritCount = 0
+		m.depsWarnCount = 0
+		m.depsInfoCount = 0
+		for _, f := range depsFindings {
+			switch f.Severity {
+			case tools.SeverityCritical:
+				m.depsCritCount++
+			case tools.SeverityWarning:
+				m.depsWarnCount++
+			case tools.SeverityInfo:
+				m.depsInfoCount++
 			}
 		}
 
@@ -195,7 +258,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if !m.scanning {
-		m.list, cmd = m.list.Update(msg)
+		if m.activeTab == 0 {
+			m.codeList, cmd = m.codeList.Update(msg)
+		} else {
+			m.depsList, cmd = m.depsList.Update(msg)
+		}
 		cmds = append(cmds, cmd)
 	}
 
@@ -221,11 +288,13 @@ func (m Model) View() string {
 
 	header := headerStyle.Render(fmt.Sprintf("🔒 ScriptKiller Security Scanner - %s", m.targetPath))
 
+	tabs := m.renderTabs()
+
 	var content string
 	if m.scanning {
 		scanStyle := theme.S().Base.
 			Width(m.width).
-			Height(m.height - 6).
+			Height(m.height - 9).
 			AlignHorizontal(lipgloss.Center).
 			AlignVertical(lipgloss.Center)
 		content = scanStyle.Render("⠋ Scanning project for security issues...\n\nThis may take a moment.")
@@ -237,22 +306,37 @@ func (m Model) View() string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(theme.Border).
 			Width(listWidth - 2).
-			Height(m.height - 7)
+			Height(m.height - 10)
 
 		detailStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(theme.Border).
 			Width(detailWidth-2).
-			Height(m.height-7).
+			Height(m.height-10).
 			Padding(1, 2)
 
-		listView := listStyle.Render(m.list.View())
+		var listView string
+		var selectedFinding *tools.Finding
+
+		if m.activeTab == 0 {
+			listView = listStyle.Render(m.codeList.View())
+			if item := m.codeList.SelectedItem(); item != nil {
+				if fi, ok := item.(FindingItem); ok {
+					selectedFinding = &fi.finding
+				}
+			}
+		} else {
+			listView = listStyle.Render(m.depsList.View())
+			if item := m.depsList.SelectedItem(); item != nil {
+				if fi, ok := item.(FindingItem); ok {
+					selectedFinding = &fi.finding
+				}
+			}
+		}
 
 		detailView := ""
-		if item := m.list.SelectedItem(); item != nil {
-			if fi, ok := item.(FindingItem); ok {
-				detailView = m.renderDetail(&fi.finding, detailWidth-6)
-			}
+		if selectedFinding != nil {
+			detailView = m.renderDetail(selectedFinding, detailWidth-6)
 		} else {
 			detailView = theme.S().Subtle.Render("Select a finding to view details")
 		}
@@ -265,15 +349,51 @@ func (m Model) View() string {
 	}
 
 	statusBar := m.renderStatusBar()
-	helpText := theme.S().Subtle.Render(" q: quit • r: rescan • ↑/↓: navigate • /: filter")
+	helpText := theme.S().Subtle.Render(" q: quit • r: rescan • tab/1/2: switch tabs • ↑/↓: navigate • /: filter")
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
+		tabs,
 		content,
 		statusBar,
 		helpText,
 	)
+}
+
+func (m Model) renderTabs() string {
+	theme := styles.CurrentTheme()
+
+	activeTabStyle := lipgloss.NewStyle().
+		Foreground(theme.BgBase).
+		Background(theme.Accent).
+		Bold(true).
+		Padding(0, 2)
+
+	inactiveTabStyle := lipgloss.NewStyle().
+		Foreground(theme.FgMuted).
+		Background(theme.BgBase).
+		Padding(0, 2)
+
+	codeTab := ""
+	depsTab := ""
+
+	if m.activeTab == 0 {
+		codeTab = activeTabStyle.Render("Code")
+		depsTab = inactiveTabStyle.Render("Dependencies")
+	} else {
+		codeTab = inactiveTabStyle.Render("Code")
+		depsTab = activeTabStyle.Render("Dependencies")
+	}
+
+	tabsContainer := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderForeground(theme.Border).
+		Width(m.width).
+		Padding(0, 1)
+
+	return tabsContainer.Render(lipgloss.JoinHorizontal(lipgloss.Left, codeTab, " ", depsTab))
 }
 
 func (m Model) renderDetail(finding *tools.Finding, width int) string {
@@ -367,31 +487,35 @@ func (m Model) renderStatusBar() string {
 	if m.scanning {
 		leftContent = "⠋ Scanning..."
 	} else {
+		critCount := m.codeCritCount + m.depsCritCount
+		warnCount := m.codeWarnCount + m.depsWarnCount
+		infoCount := m.codeInfoCount + m.depsInfoCount
+
 		badges := []string{}
 
-		if m.critCount > 0 {
+		if critCount > 0 {
 			badges = append(badges, lipgloss.NewStyle().
 				Foreground(theme.BgBase).
 				Background(theme.Error).
 				Bold(true).
 				Padding(0, 1).
-				Render(fmt.Sprintf(" %d ", m.critCount)))
+				Render(fmt.Sprintf(" %d ", critCount)))
 		}
-		if m.warnCount > 0 {
+		if warnCount > 0 {
 			badges = append(badges, lipgloss.NewStyle().
 				Foreground(theme.BgBase).
 				Background(theme.Warning).
 				Bold(true).
 				Padding(0, 1).
-				Render(fmt.Sprintf(" %d ", m.warnCount)))
+				Render(fmt.Sprintf(" %d ", warnCount)))
 		}
-		if m.infoCount > 0 {
+		if infoCount > 0 {
 			badges = append(badges, lipgloss.NewStyle().
 				Foreground(theme.BgBase).
 				Background(theme.Info).
 				Bold(true).
 				Padding(0, 1).
-				Render(fmt.Sprintf(" %d ", m.infoCount)))
+				Render(fmt.Sprintf(" %d ", infoCount)))
 		}
 
 		for i, badge := range badges {
