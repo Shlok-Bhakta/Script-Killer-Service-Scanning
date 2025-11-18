@@ -59,13 +59,15 @@ func (l Location) String() string {
 }
 
 type Finding struct {
-	ID         string
-	Severity   Severity
-	Message    string
-	Location   Location
-	Suggestion string
-	Metadata   map[string]string
-	Suppressed bool
+	ID            string
+	Severity      Severity
+	SeverityScore *float64
+	Message       string
+	Location      Location
+	Suggestion    string
+	Metadata      map[string]string
+	Suppressed    bool
+	CVE           *string
 }
 
 type ToolOutput struct {

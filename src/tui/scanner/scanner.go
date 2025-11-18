@@ -73,14 +73,38 @@ func (s *Scanner) GetAllFindings() []tools.Finding {
 		return nil
 	}
 
-	var findings []tools.Finding
+	seenCVEs := make(map[string]bool)
+
+	var critical, warnings, info, other []tools.Finding
+
 	for _, output := range s.lastResult.ToolOutputs {
-		findings = append(findings, output.Critical...)
-		findings = append(findings, output.Warnings...)
-		findings = append(findings, output.Info...)
-		findings = append(findings, output.Other...)
+		critical = append(critical, filterDuplicateCVEs(output.Critical, seenCVEs)...)
+		warnings = append(warnings, filterDuplicateCVEs(output.Warnings, seenCVEs)...)
+		info = append(info, filterDuplicateCVEs(output.Info, seenCVEs)...)
+		other = append(other, filterDuplicateCVEs(output.Other, seenCVEs)...)
 	}
+
+	var findings []tools.Finding
+	findings = append(findings, critical...)
+	findings = append(findings, warnings...)
+	findings = append(findings, info...)
+	findings = append(findings, other...)
+
 	return findings
+}
+
+func filterDuplicateCVEs(findings []tools.Finding, seenCVEs map[string]bool) []tools.Finding {
+	var filtered []tools.Finding
+	for _, f := range findings {
+		if f.CVE != nil {
+			if seenCVEs[*f.CVE] {
+				continue
+			}
+			seenCVEs[*f.CVE] = true
+		}
+		filtered = append(filtered, f)
+	}
+	return filtered
 }
 
 func (s *Scanner) GetTargetPath() string {

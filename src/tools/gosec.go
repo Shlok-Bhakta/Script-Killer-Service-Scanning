@@ -119,17 +119,19 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 		col, _ := strconv.Atoi(issue.Column)
 
 		finding := Finding{
-			ID:         fmt.Sprintf("%s-%s-%s-%s", issue.RuleID, relPath, issue.Line, issue.Column),
-			Severity:   SeverityInfo,
-			Message:    fmt.Sprintf("[%s] %s%s", issue.RuleID, issue.Details, cweInfo),
-			Location:   Location{File: relPath, Line: line, Column: col},
-			Suggestion: strings.TrimSpace(issue.Code),
+			ID:            fmt.Sprintf("%s-%s-%s-%s", issue.RuleID, relPath, issue.Line, issue.Column),
+			Severity:      SeverityInfo,
+			SeverityScore: nil,
+			Message:       fmt.Sprintf("[%s] %s%s", issue.RuleID, issue.Details, cweInfo),
+			Location:      Location{File: relPath, Line: line, Column: col},
+			Suggestion:    strings.TrimSpace(issue.Code),
 			Metadata: map[string]string{
 				"rule_id":    issue.RuleID,
 				"cwe_id":     issue.CWE.ID,
 				"confidence": issue.Confidence,
 			},
 			Suppressed: false,
+			CVE:        nil,
 		}
 
 		switch strings.ToLower(issue.Severity) {

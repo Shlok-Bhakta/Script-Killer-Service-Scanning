@@ -177,7 +177,13 @@ func (o *OSVScannerTool) Run(targetPath string) (ToolOutput, error) {
 				finding := Finding{
 					ID:       fmt.Sprintf("%s-%s-%s", vuln.ID, pkg.Package.Name, pkg.Package.Version),
 					Severity: severity,
-					Message:  fmt.Sprintf("[%s]%s %s%s%s", vuln.ID, scoreInfo, vuln.Summary, cveInfo, fixInfo),
+					SeverityScore: func() *float64 {
+						if cvssScore > 0 {
+							return &cvssScore
+						}
+						return nil
+					}(),
+					Message: fmt.Sprintf("[%s]%s %s%s%s", vuln.ID, scoreInfo, vuln.Summary, cveInfo, fixInfo),
 					Location: Location{
 						File: result.Source.Path,
 					},
@@ -190,6 +196,14 @@ func (o *OSVScannerTool) Run(targetPath string) (ToolOutput, error) {
 						"fixed":     fixedVersion,
 					},
 					Suppressed: false,
+					CVE: func() *string {
+						for _, alias := range vuln.Aliases {
+							if strings.HasPrefix(alias, "CVE-") {
+								return &alias
+							}
+						}
+						return nil
+					}(),
 				}
 
 				if len(vuln.Aliases) > 0 {

@@ -314,6 +314,16 @@ func (m Model) renderDetail(finding *tools.Finding, width int) string {
 	b.WriteString(theme.S().Subtitle.Render("Message") + "\n")
 	b.WriteString(theme.S().Text.Render(finding.Message) + "\n\n")
 
+	if finding.CVE != nil {
+		b.WriteString(theme.S().Subtitle.Render("CVE") + "\n")
+		b.WriteString(theme.S().Text.Render(*finding.CVE) + "\n\n")
+	}
+
+	if finding.SeverityScore != nil {
+		b.WriteString(theme.S().Subtitle.Render("CVSS Score") + "\n")
+		b.WriteString(theme.S().Text.Render(fmt.Sprintf("%.1f", *finding.SeverityScore)) + "\n\n")
+	}
+
 	b.WriteString(theme.S().Subtitle.Render("Location") + "\n")
 	loc := finding.Location.File
 	if finding.Location.Line > 0 {
