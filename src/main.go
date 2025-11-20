@@ -1,119 +1,127 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
-	"path/filepath"
 
-	// "scriptkiller/src/nix"
-	"scriptkiller/src/tools"
+	"scriptkiller/src/tui"
+	"scriptkiller/src/tui/scanner"
 
 	"github.com/charmbracelet/log"
-	// "github.com/charmbracelet/log"
 )
 
-func Detect_Lang(fName string) string {
-	Lang := filepath.Ext(fName)
-	switch Lang {
-	case ".go":
-		fmt.Println("Code Language Detected: Golang")
-		return "Golang"
-	case ".py":
-		fmt.Println("Code Language Detected: Python")
-		return "Python"
-	case ".cpp":
-		fmt.Println("Code Language Detected: C++")
-		return "C++"
-	case ".js":
-		fmt.Println("Code Language Detected: Javascript")
-		return "Javascript"
-	default:
-		fmt.Println("FileType/Code Language Not Supported")
-		return "Not Availiable"
-	}
-}
-
 func main() {
-	// We need to think of some args.
-	// Ideas:
-	// 1. A flag to specify the working directory
-	// 2. A flag specifying specific tools regardless of language
+	log.SetOutput(io.Discard)
+	log.SetLevel(log.ErrorLevel)
 
-	// var fPath string
-	// var fType string
-
-	// fmt.Print("Insert Filepath Here: ")
-	// fmt.Scan(&fPath)
-
-	// fType = Detect_Lang(fPath)
-
-	// if err := nix.RunNixShell([]string{"lolcat", "cowsay"}, "cowsay \"", fType, "\" | lolcat"); err != nil {
-	// 	log.Fatal("Failed to run nix-shell", "error", err)
-	// }
 	args := os.Args[1:]
 	cwd := "."
+	noTUI := false
+
 	for i, arg := range args {
 		if arg == "-h" || arg == "--help" {
 			fmt.Println("Usage: scriptkiller [options] [path]")
 			fmt.Println("Options:")
 			fmt.Println("  --help, -h: Show this help message")
+			fmt.Println("  --no-tui: Scan and print results without TUI")
 			return
 		}
-		if i == len(args)-1 {
+		if arg == "--no-tui" {
+			noTUI = true
+			continue
+		}
+		if i == len(args)-1 && arg != "--no-tui" {
 			cwd = arg
-			log.Info("Using cwd", "path", cwd)
 		}
 	}
 
-	tool_arr := []tools.SecurityTool{
-		tools.NewGosecTool(),
-		tools.NewGrypeTool(),
-		tools.NewOSVScannerTool(),
-	}
-	tool_out_map, errs := tools.RunAllToolsForLanguage(tool_arr, "go", cwd)
-	if len(errs) != 0 {
-		log.Error("Errors occurred", "errors", errs)
-	}
-
-	for toolName, output := range tool_out_map {
-		fmt.Printf("\n=== %s Results ===\n", toolName)
-		fmt.Printf("Duration: %dms\n", output.Duration)
-		fmt.Printf("Total Findings: %d\n\n", output.TotalFindings())
-
-		if len(output.Critical) > 0 {
-			fmt.Printf("CRITICAL (%d):\n", len(output.Critical))
-			for _, f := range output.Critical {
-				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
-				fmt.Printf("    Location: %s\n", f.Location.String())
-				if f.Suggestion != "" {
-					fmt.Printf("    %s\n", f.Suggestion)
-				}
-			}
-			fmt.Println()
+	if noTUI {
+		log.SetOutput(os.Stdout)
+		log.SetLevel(log.InfoLevel)
+		if err := runScan(cwd); err != nil {
+			log.Fatal("Scan failed", "error", err)
 		}
+		return
+	}
 
-		if len(output.Warnings) > 0 {
-			fmt.Printf("WARNINGS (%d):\n", len(output.Warnings))
-			for _, f := range output.Warnings {
-				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
-				fmt.Printf("    Location: %s\n", f.Location.String())
-				if f.Suggestion != "" {
-					fmt.Printf("    %s\n", f.Suggestion)
-				}
-			}
-			fmt.Println()
-		}
+	if err := tui.StartTUI(cwd); err != nil {
+		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+		os.Exit(1)
+	}
+}
 
-		if len(output.Info) > 0 {
-			fmt.Printf("INFO (%d):\n", len(output.Info))
-			for _, f := range output.Info {
-				fmt.Printf("  [%s] %s\n", f.ID, f.Message)
-				fmt.Printf("    Location: %s\n", f.Location.String())
-				if f.Suggestion != "" {
-					fmt.Printf("    %s\n", f.Suggestion)
-				}
-			}
-			fmt.Println()
+func runScan(path string) error {
+	s := scanner.New(path)
+	ctx := context.Background()
+
+	log.Info("Starting security scan", "path", path)
+	result, err := s.Scan(ctx)
+	if err != nil {
+		return err
+	}
+
+	findings := s.GetAllFindings()
+	log.Info("Scan completed", "duration", result.Duration, "findings", len(findings))
+
+	if len(findings) == 0 {
+		log.Info("No security issues found")
+		return nil
+	}
+
+	critCount := 0
+	warnCount := 0
+	infoCount := 0
+
+	for _, f := range findings {
+		switch f.Severity {
+		case "critical":
+			critCount++
+		case "warning":
+			warnCount++
+		case "info":
+			infoCount++
 		}
 	}
+
+	if critCount > 0 {
+		log.Error("Critical issues found", "count", critCount)
+	}
+	if warnCount > 0 {
+		log.Warn("Warnings found", "count", warnCount)
+	}
+	if infoCount > 0 {
+		log.Info("Info items found", "count", infoCount)
+	}
+
+	fmt.Println()
+
+	for _, f := range findings {
+		var logFunc func(msg interface{}, keyvals ...interface{})
+		switch f.Severity {
+		case "critical":
+			logFunc = log.Error
+		case "warning":
+			logFunc = log.Warn
+		default:
+			logFunc = log.Info
+		}
+
+		loc := f.Location.File
+		if f.Location.Line > 0 {
+			loc = fmt.Sprintf("%s:%d:%d", f.Location.File, f.Location.Line, f.Location.Column)
+		}
+
+		logFunc(f.Message,
+			"id", f.ID,
+			"location", loc,
+		)
+
+		if f.Suggestion != "" {
+			log.Info("  → " + f.Suggestion)
+		}
+	}
+
+	return nil
 }

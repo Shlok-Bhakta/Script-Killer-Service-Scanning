@@ -155,7 +155,8 @@ func (g *GosecTool) Run(targetPath string) (ToolOutput, error) {
 }
 
 func (g *GosecTool) IsApplicable(language string) bool {
-	return language == "go" || language == "Golang"
+	lang := strings.ToLower(language)
+	return lang == "go" || lang == "golang"
 }
 
 func (g *GosecTool) Validate() error {

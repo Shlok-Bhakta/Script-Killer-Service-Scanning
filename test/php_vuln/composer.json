@@ -1,0 +1,9 @@
+{
+    "name": "example/php-vuln-test",
+    "description": "Test project with vulnerable PHP dependencies",
+    "require": {
+        "symfony/symfony": "3.4.0",
+        "laravel/framework": "5.5.0",
+        "monolog/monolog": "1.23.0"
+    }
+}

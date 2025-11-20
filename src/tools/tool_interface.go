@@ -98,14 +98,22 @@ type SecurityTool interface {
 	GetConfigSchema() map[string]any
 }
 
-func RunAllToolsForLanguage(tools []SecurityTool, language string, targetPath string) (map[string]ToolOutput, []error) {
+func RunAllToolsForLanguage(tools []SecurityTool, detectedLanguages map[string]int, targetPath string) (map[string]ToolOutput, []error) {
 	results := make(map[string]ToolOutput)
 	var errors []error
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
 	for _, tool := range tools {
-		if tool.IsApplicable(language) {
+		applicable := false
+		for lang := range detectedLanguages {
+			if tool.IsApplicable(lang) {
+				applicable = true
+				break
+			}
+		}
+
+		if applicable {
 			wg.Add(1)
 			go func(t SecurityTool) {
 				defer wg.Done()
