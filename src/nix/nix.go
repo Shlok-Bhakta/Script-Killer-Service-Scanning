@@ -1,6 +1,7 @@
 package nix
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"os"
@@ -28,7 +29,6 @@ func getNixPortablePath() (string, error) {
 	cacheDir := filepath.Join(os.Getenv("HOME"), ".cache", "scriptkiller")
 	nixPortablePath := filepath.Join(cacheDir, fmt.Sprintf("nix-portable-%s", nixPortableVersion))
 
-	// 1. Extract the binary if missing
 	if _, err := os.Stat(nixPortablePath); err != nil {
 		log.Info("Extracting nix-portable to cache", "path", nixPortablePath)
 
@@ -46,14 +46,11 @@ func getNixPortablePath() (string, error) {
 		log.Debug("Found nix-portable in cache", "path", nixPortablePath)
 	}
 
-	// 2. Ensure the runtime is initialized (Runs only once)
-	// This prevents the "failed to create symbolic link" race condition
 	initOnce.Do(func() {
 		log.Info("Initializing nix-portable runtime (one-time setup)...")
 		cmd := exec.Command(nixPortablePath, "nix-shell", "--version")
 		cmd.Env = append(os.Environ(), "LC_ALL=C")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			// We warn but don't fail here; the real commands might still work or provide better errors
 			log.Warn("Nix initialization warning", "error", err, "output", string(out))
 		} else {
 			log.Info("Nix portable runtime initialized successfully")
@@ -109,9 +106,12 @@ func RunNixShellWithOutput(packages []string, command string, args ...string) ([
 	cmd := exec.Command(nixPath, nixArgs...)
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "GOTOOLCHAIN=local")
 
-	output, err := cmd.CombinedOutput()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	
 	if err != nil {
-		log.Error("Failed to run nix-shell", "error", err)
+		log.Error("Failed to run nix-shell", "error", err, "stderr", stderr.String())
 		return output, err
 	}
 
