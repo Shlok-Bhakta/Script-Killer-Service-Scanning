@@ -1,11 +1,13 @@
 package nix
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 
 	"github.com/charmbracelet/log"
 )
@@ -15,28 +17,46 @@ var nixPortableBinary []byte
 
 const nixPortableVersion = "v012"
 
+var (
+	extractMutex sync.Mutex
+	initOnce     sync.Once
+)
+
 func getNixPortablePath() (string, error) {
+	extractMutex.Lock()
+	defer extractMutex.Unlock()
+
 	cacheDir := filepath.Join(os.Getenv("HOME"), ".cache", "scriptkiller")
 	nixPortablePath := filepath.Join(cacheDir, fmt.Sprintf("nix-portable-%s", nixPortableVersion))
 
-	if _, err := os.Stat(nixPortablePath); err == nil {
+	if _, err := os.Stat(nixPortablePath); err != nil {
+		log.Info("Extracting nix-portable to cache", "path", nixPortablePath)
+
+		if err := os.MkdirAll(cacheDir, 0755); err != nil {
+			log.Fatal("Failed to create cache directory", "error", err)
+			return "", fmt.Errorf("failed to create cache dir: %w", err)
+		}
+
+		if err := os.WriteFile(nixPortablePath, nixPortableBinary, 0755); err != nil {
+			log.Fatal("Failed to write nix-portable binary", "error", err)
+			return "", fmt.Errorf("failed to extract nix-portable: %w", err)
+		}
+		log.Info("Successfully extracted nix-portable", "path", nixPortablePath)
+	} else {
 		log.Debug("Found nix-portable in cache", "path", nixPortablePath)
-		return nixPortablePath, nil
 	}
 
-	log.Info("Extracting nix-portable to cache", "path", nixPortablePath)
+	initOnce.Do(func() {
+		log.Info("Initializing nix-portable runtime (one-time setup)...")
+		cmd := exec.Command(nixPortablePath, "nix-shell", "--version")
+		cmd.Env = append(os.Environ(), "LC_ALL=C")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			log.Warn("Nix initialization warning", "error", err, "output", string(out))
+		} else {
+			log.Info("Nix portable runtime initialized successfully")
+		}
+	})
 
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		log.Fatal("Failed to create cache directory", "error", err)
-		return "", fmt.Errorf("failed to create cache dir: %w", err)
-	}
-
-	if err := os.WriteFile(nixPortablePath, nixPortableBinary, 0755); err != nil {
-		log.Fatal("Failed to write nix-portable binary", "error", err)
-		return "", fmt.Errorf("failed to extract nix-portable: %w", err)
-	}
-
-	log.Info("Successfully extracted nix-portable", "path", nixPortablePath)
 	return nixPortablePath, nil
 }
 
@@ -86,9 +106,12 @@ func RunNixShellWithOutput(packages []string, command string, args ...string) ([
 	cmd := exec.Command(nixPath, nixArgs...)
 	cmd.Env = append(os.Environ(), "LC_ALL=C", "GOTOOLCHAIN=local")
 
-	output, err := cmd.CombinedOutput()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	
 	if err != nil {
-		log.Error("Failed to run nix-shell", "error", err)
+		log.Error("Failed to run nix-shell", "error", err, "stderr", stderr.String())
 		return output, err
 	}
 
