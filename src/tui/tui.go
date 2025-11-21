@@ -336,6 +336,8 @@ func (m Model) View() string {
 			Height(contentHeight).
 			Padding(1, 2)
 
+		m.list.SetSize(listWidth-2, contentHeight-2)
+
 		listView := listStyle.Render(m.list.View())
 
 		detailView := ""
