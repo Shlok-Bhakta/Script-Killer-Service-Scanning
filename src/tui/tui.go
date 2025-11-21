@@ -128,6 +128,13 @@ func NewModel(targetPath string) Model {
 
 	directoryList := list.New(dirs, list.NewDefaultDelegate(), 0, 0)
 	directoryList.Title = "Directories"
+	dirDelegate := list.NewDefaultDelegate()
+	dirDelegate.ShowDescription = false
+	dirDelegate.SetSpacing(0)
+	dirDelegate.SetHeight(1)
+
+	delegate.ShowDescription = false
+	directoryList.SetDelegate(dirDelegate)
 
 	return Model{
 		scanner:       s,
@@ -278,7 +285,7 @@ func (m Model) View() string {
 
 	theme := styles.CurrentTheme()
 
-	dirHeight := 4
+	dirHeight := 20
 	contentHeight := m.height - dirHeight - 20
 	contentWidth := m.width
 
