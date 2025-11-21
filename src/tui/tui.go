@@ -9,6 +9,7 @@ import (
 	"scriptkiller/src/tui/styles"
 	"scriptkiller/src/tui/watcher"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -73,9 +74,7 @@ type Model struct {
 
 	// command mode
 	commandMode   bool
-	commandInput  string
 	statusMessage string
-	statusColor   string
 
 	textInput textinput.Model
 }
@@ -232,6 +231,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return m, nil
+
+	case clearMessageMsg:
+		m.statusMessage = ""
+		return m, nil
+
 	}
 
 	if !m.scanning {
@@ -485,21 +489,20 @@ func (m Model) handleCommand(cmd string) (tea.Model, tea.Cmd) {
 		if len(parts) >= 3 && parts[1] == "dir" {
 			dir := parts[2]
 			m.directories = append(m.directories, dir)
-			// reinitialize scanner + watcher
 		}
 	case "remove", "rm":
 		if len(parts) >= 3 && parts[1] == "dir" {
 		}
 	case "list", "ls":
 		if len(parts) >= 2 && parts[1] == "dirs" {
-			// maybe open a small modal or show in detail view
 		}
 	default:
 		m.statusMessage = "Unrecognized Command"
+
 	}
 
 	m.commandMode = false
-	return m, nil
+	return m, clearMessageAfter(time.Second * 3)
 }
 
 func removeString(list []string, target string) []string {
@@ -511,3 +514,12 @@ func removeString(list []string, target string) []string {
 	}
 	return result
 }
+
+func clearMessageAfter(d time.Duration) tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(d)
+		return clearMessageMsg{}
+	}
+}
+
+type clearMessageMsg struct{}
