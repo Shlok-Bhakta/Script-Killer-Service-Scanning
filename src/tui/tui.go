@@ -23,6 +23,14 @@ type FindingItem struct {
 	finding tools.Finding
 }
 
+type Focus int
+
+const (
+	FocusFindings Focus = iota
+	FocusDirectories
+	FocusCommand
+)
+
 func (i FindingItem) FilterValue() string {
 	return i.finding.Message + " " + i.finding.Location.File
 }
@@ -55,6 +63,13 @@ type scanCompleteMsg struct {
 	err    error
 }
 
+// Directory lists
+type directoryItem string
+
+func (d directoryItem) Title() string       { return string(d) }
+func (d directoryItem) Description() string { return "" }
+func (d directoryItem) FilterValue() string { return string(d) }
+
 type Model struct {
 	scanner     *scanner.Scanner
 	watcher     *watcher.Watcher
@@ -72,11 +87,14 @@ type Model struct {
 	infoCount int
 	scanTime  string
 
-	// command mode
-	commandMode   bool
 	statusMessage string
+	statusError   bool
 
 	textInput textinput.Model
+
+	directoryList list.Model
+
+	focus Focus
 }
 
 func NewModel(targetPath string) Model {
@@ -105,13 +123,20 @@ func NewModel(targetPath string) Model {
 	ti.CharLimit = 256
 	ti.Prompt = ":"
 
+	dirs := []list.Item{}
+	dirs = append(dirs, directoryItem(absPath))
+
+	directoryList := list.New(dirs, list.NewDefaultDelegate(), 0, 0)
+	directoryList.Title = "Directories"
+
 	return Model{
-		scanner:     s,
-		watcher:     w,
-		list:        l,
-		directories: []string{absPath},
-		ctx:         ctx,
-		cancelCtx:   cancel,
+		scanner:       s,
+		watcher:       w,
+		list:          l,
+		directories:   []string{absPath},
+		directoryList: directoryList,
+		ctx:           ctx,
+		cancelCtx:     cancel,
 
 		textInput: ti,
 	}
@@ -143,20 +168,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		listWidth := m.width / 2
 		listHeight := m.height - 6
 		m.list.SetSize(listWidth-4, listHeight-4)
-
+		m.directoryList.SetSize(m.width-4, listHeight-4)
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.commandMode {
+		if msg.String() == "tab" {
+			switch m.focus {
+			case FocusDirectories:
+				m.focus = FocusFindings
+			case FocusFindings:
+				m.focus = FocusCommand
+			case FocusCommand:
+				m.focus = FocusDirectories
+			}
+			return m, nil
+		}
+		if m.focus == FocusCommand {
+			m.textInput.Focus()
 			var cmd tea.Cmd
 			m.textInput, cmd = m.textInput.Update(msg)
 
 			if msg.Type == tea.KeyEnter {
 				return m.handleCommand(m.textInput.Value())
-			}
-			if msg.String() == "esc" {
-				m.commandMode = false
-				return m, nil
 			}
 
 			return m, cmd
@@ -180,13 +213,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "r":
 				m.scanning = true
 				return m, m.doScan
-			}
-
-			if msg.String() == ":" && !m.commandMode && !m.scanning {
-				m.commandMode = true
-				m.textInput.SetValue("")
-				m.textInput.Focus()
-				return m, nil
 			}
 		}
 
@@ -265,6 +291,16 @@ func (m Model) View() string {
 
 	header := headerStyle.Render(fmt.Sprintf("🔒 ScriptKiller Security Scanner - %s", m.directories[0]))
 
+	dirStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(theme.Border)
+
+	if m.focus == FocusDirectories {
+		dirStyle = dirStyle.BorderForeground(theme.Accent)
+	}
+
+	directoriesView := dirStyle.Render(m.directoryList.View())
+
 	var content string
 	if m.scanning {
 		scanStyle := theme.S().Base.
@@ -282,6 +318,10 @@ func (m Model) View() string {
 			BorderForeground(theme.Border).
 			Width(listWidth - 2).
 			Height(m.height - 7)
+
+		if m.focus == FocusFindings {
+			listStyle = listStyle.BorderForeground(theme.Accent)
+		}
 
 		detailStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -313,6 +353,7 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
+		directoriesView,
 		content,
 		statusBar,
 		m.renderCommandBar(),
@@ -443,25 +484,36 @@ func (m Model) renderStatusBar() string {
 }
 
 func (m Model) renderCommandBar() string {
+	text := ""
 	theme := styles.CurrentTheme()
 
-	// statusStyle := lipgloss.NewStyle().
-	// 	Foreground(theme.FgMuted).
-	// 	BorderStyle(lipgloss.NormalBorder()).
-	// 	BorderTop(true).
-	// 	BorderForeground(theme.Border).
-	// 	Width(m.width).
-	// 	Padding(0, 1)
+	style := lipgloss.NewStyle().
+		Foreground(theme.FgMuted).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderTop(true).
+		BorderForeground(theme.Border).
+		Width(m.width).
+		Padding(0, 1)
 
-	if m.commandMode {
-		return m.textInput.View()
-	} else if m.statusMessage == "" {
-		helpText := theme.S().Subtle.Render(" q | quit • r | rescan • ↑/↓ | navigate • / | filter • : | Enter Command")
-		return helpText
-	} else {
-		style := lipgloss.NewStyle().Foreground(styles.CurrentTheme().Error)
-		return style.Render(m.statusMessage)
+	style = style.Foreground(styles.CurrentTheme().Primary)
+
+	if m.focus == FocusCommand {
+		style = style.BorderForeground(theme.Accent)
 	}
+
+	if m.focus == FocusCommand {
+		if m.textInput.Value() == "" && m.statusMessage != "" {
+			style = style.Foreground(styles.CurrentTheme().Error)
+			text = m.statusMessage
+		} else {
+			text = m.textInput.View()
+		}
+	} else {
+		helpText := theme.S().Subtle.Render(" q | quit • r | rescan • ↑/↓ | navigate • / | filter • : | Enter Command")
+		text = helpText
+	}
+
+	return style.Render(text)
 }
 
 func StartTUI(targetPath string) error {
@@ -477,10 +529,11 @@ func StartTUI(targetPath string) error {
 }
 
 func (m Model) handleCommand(cmd string) (tea.Model, tea.Cmd) {
+	m.statusError = false
 	parts := strings.Fields(cmd)
+	m.textInput.SetValue("")
 
 	if len(parts) == 0 {
-		m.commandMode = false
 		return m, nil
 	}
 
@@ -489,6 +542,8 @@ func (m Model) handleCommand(cmd string) (tea.Model, tea.Cmd) {
 		if len(parts) >= 3 && parts[1] == "dir" {
 			dir := parts[2]
 			m.directories = append(m.directories, dir)
+			m.statusMessage = fmt.Sprintf("Added directory: %s", dir)
+			m.AddDirectory(dir)
 		}
 	case "remove", "rm":
 		if len(parts) >= 3 && parts[1] == "dir" {
@@ -497,11 +552,10 @@ func (m Model) handleCommand(cmd string) (tea.Model, tea.Cmd) {
 		if len(parts) >= 2 && parts[1] == "dirs" {
 		}
 	default:
+		m.statusError = true
 		m.statusMessage = "Unrecognized Command"
-
 	}
 
-	m.commandMode = false
 	return m, clearMessageAfter(time.Second * 3)
 }
 
@@ -520,6 +574,17 @@ func clearMessageAfter(d time.Duration) tea.Cmd {
 		time.Sleep(d)
 		return clearMessageMsg{}
 	}
+}
+
+func (m *Model) AddDirectory(path string) {
+
+	dir := directoryItem(path)
+
+	m.directoryList.InsertItem(
+		len(m.directoryList.Items()),
+		dir,
+	)
+
 }
 
 type clearMessageMsg struct{}
