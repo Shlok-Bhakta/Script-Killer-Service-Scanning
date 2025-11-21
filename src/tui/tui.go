@@ -165,10 +165,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-		listWidth := m.width / 2
-		listHeight := m.height - 6
-		m.list.SetSize(listWidth-4, listHeight-4)
-		m.directoryList.SetSize(m.width-4, listHeight-4)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -279,6 +275,10 @@ func (m Model) View() string {
 
 	theme := styles.CurrentTheme()
 
+	dirHeight := 4
+	contentHeight := m.height - dirHeight - 20
+	contentWidth := m.width - 4
+
 	headerStyle := lipgloss.NewStyle().
 		Foreground(theme.Accent).
 		Bold(true).
@@ -299,25 +299,28 @@ func (m Model) View() string {
 		dirStyle = dirStyle.BorderForeground(theme.Accent)
 	}
 
+	m.directoryList.SetHeight(dirHeight)
+	m.directoryList.SetWidth(contentWidth)
+
 	directoriesView := dirStyle.Render(m.directoryList.View())
 
 	var content string
 	if m.scanning {
 		scanStyle := theme.S().Base.
-			Width(m.width).
-			Height(m.height - 6).
+			Width(contentWidth).
+			Height(contentHeight).
 			AlignHorizontal(lipgloss.Center).
 			AlignVertical(lipgloss.Center)
 		content = scanStyle.Render("⠋ Scanning project for security issues...\n\nThis may take a moment.")
 	} else {
-		listWidth := m.width / 2
-		detailWidth := m.width - listWidth
+		listWidth := contentWidth / 2
+		detailWidth := contentWidth / 2
 
 		listStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(theme.Border).
 			Width(listWidth - 2).
-			Height(m.height - 7)
+			Height(contentHeight)
 
 		if m.focus == FocusFindings {
 			listStyle = listStyle.BorderForeground(theme.Accent)
@@ -327,7 +330,7 @@ func (m Model) View() string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(theme.Border).
 			Width(detailWidth-2).
-			Height(m.height-7).
+			Height(contentHeight).
 			Padding(1, 2)
 
 		listView := listStyle.Render(m.list.View())
