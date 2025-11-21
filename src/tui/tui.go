@@ -288,8 +288,8 @@ func (m Model) View() string {
 
 	theme := styles.CurrentTheme()
 
-	dirHeight := 10
-	contentHeight := m.height - dirHeight - 20
+	dirHeight := 8
+	contentHeight := m.height - dirHeight - 12
 	contentWidth := m.width
 
 	headerStyle := lipgloss.NewStyle().
@@ -382,7 +382,7 @@ func defaultWrapperStyle(width int, height int) lipgloss.Style {
 		BorderForeground(styles.CurrentTheme().Border).
 		Width(width-2).
 		Height(height).
-		Padding(0, 0)
+		Padding(0, 1)
 }
 
 func (m Model) renderDetail(finding *tools.Finding, width int) string {
