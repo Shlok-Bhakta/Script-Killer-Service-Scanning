@@ -189,7 +189,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, cmd
-		} else {
+		} else if msg.String() == "q" || msg.String() == "ctrl+c" {
+			if m.cancelCtx != nil {
+				m.cancelCtx()
+			}
+			return m, tea.Quit
+		} else if m.focus == FocusFindings {
 			if m.scanning {
 				if msg.String() == "q" || msg.String() == "ctrl+c" {
 					if m.cancelCtx != nil {
@@ -201,15 +206,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			switch msg.String() {
-			case "q", "ctrl+c":
-				if m.cancelCtx != nil {
-					m.cancelCtx()
-				}
-				return m, tea.Quit
 			case "r":
 				m.scanning = true
 				return m, m.doScan
 			}
+		} else if m.focus == FocusDirectories {
+			m.directoryList, cmd = m.directoryList.Update(msg)
+			return m, cmd
 		}
 
 	case watcher.FileChangeMsg:
@@ -277,7 +280,7 @@ func (m Model) View() string {
 
 	dirHeight := 4
 	contentHeight := m.height - dirHeight - 20
-	contentWidth := m.width - 4
+	contentWidth := m.width
 
 	headerStyle := lipgloss.NewStyle().
 		Foreground(theme.Accent).
@@ -300,7 +303,7 @@ func (m Model) View() string {
 	}
 
 	m.directoryList.SetHeight(dirHeight)
-	m.directoryList.SetWidth(contentWidth)
+	m.directoryList.SetWidth(m.width - 4)
 
 	directoriesView := dirStyle.Render(m.directoryList.View())
 
@@ -506,7 +509,9 @@ func (m Model) renderCommandBar() string {
 
 	if m.focus == FocusCommand {
 		if m.textInput.Value() == "" && m.statusMessage != "" {
-			style = style.Foreground(styles.CurrentTheme().Error)
+			if m.statusError {
+				style = style.Foreground(styles.CurrentTheme().Error)
+			}
 			text = m.statusMessage
 		} else {
 			text = m.textInput.View()
