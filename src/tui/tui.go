@@ -128,6 +128,9 @@ func NewModel(targetPath string) Model {
 
 	directoryList := list.New(dirs, list.NewDefaultDelegate(), 0, 0)
 	directoryList.Title = "Directories"
+	directoryList.SetShowFilter(false)
+	directoryList.SetShowHelp(false)
+	directoryList.SetShowStatusBar(false)
 	dirDelegate := list.NewDefaultDelegate()
 	dirDelegate.ShowDescription = false
 	dirDelegate.SetSpacing(0)
@@ -285,7 +288,7 @@ func (m Model) View() string {
 
 	theme := styles.CurrentTheme()
 
-	dirHeight := 20
+	dirHeight := 10
 	contentHeight := m.height - dirHeight - 20
 	contentWidth := m.width
 
@@ -379,7 +382,7 @@ func defaultWrapperStyle(width int, height int) lipgloss.Style {
 		BorderForeground(styles.CurrentTheme().Border).
 		Width(width-2).
 		Height(height).
-		Padding(1, 2)
+		Padding(0, 0)
 }
 
 func (m Model) renderDetail(finding *tools.Finding, width int) string {
