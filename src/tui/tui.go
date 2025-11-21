@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
 )
@@ -53,21 +55,29 @@ type scanCompleteMsg struct {
 }
 
 type Model struct {
-	scanner    *scanner.Scanner
-	watcher    *watcher.Watcher
-	width      int
-	height     int
-	list       list.Model
-	findings   []tools.Finding
-	scanning   bool
-	targetPath string
-	ctx        context.Context
-	cancelCtx  context.CancelFunc
+	scanner     *scanner.Scanner
+	watcher     *watcher.Watcher
+	width       int
+	height      int
+	list        list.Model
+	findings    []tools.Finding
+	scanning    bool
+	directories []string
+	ctx         context.Context
+	cancelCtx   context.CancelFunc
 
 	critCount int
 	warnCount int
 	infoCount int
 	scanTime  string
+
+	// command mode
+	commandMode   bool
+	commandInput  string
+	statusMessage string
+	statusColor   string
+
+	textInput textinput.Model
 }
 
 func NewModel(targetPath string) Model {
@@ -90,13 +100,21 @@ func NewModel(targetPath string) Model {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	ti := textinput.New()
+	ti.Placeholder = "Enter command..."
+	ti.Focus()
+	ti.CharLimit = 256
+	ti.Prompt = ":"
+
 	return Model{
-		scanner:    s,
-		watcher:    w,
-		list:       l,
-		targetPath: absPath,
-		ctx:        ctx,
-		cancelCtx:  cancel,
+		scanner:     s,
+		watcher:     w,
+		list:        l,
+		directories: []string{absPath},
+		ctx:         ctx,
+		cancelCtx:   cancel,
+
+		textInput: ti,
 	}
 }
 
@@ -130,25 +148,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.scanning {
-			if msg.String() == "q" || msg.String() == "ctrl+c" {
+		if m.commandMode {
+			var cmd tea.Cmd
+			m.textInput, cmd = m.textInput.Update(msg)
+
+			if msg.Type == tea.KeyEnter {
+				return m.handleCommand(m.textInput.Value())
+			}
+			if msg.String() == "esc" {
+				m.commandMode = false
+				return m, nil
+			}
+
+			return m, cmd
+		} else {
+			if m.scanning {
+				if msg.String() == "q" || msg.String() == "ctrl+c" {
+					if m.cancelCtx != nil {
+						m.cancelCtx()
+					}
+					return m, tea.Quit
+				}
+				return m, nil
+			}
+
+			switch msg.String() {
+			case "q", "ctrl+c":
 				if m.cancelCtx != nil {
 					m.cancelCtx()
 				}
 				return m, tea.Quit
+			case "r":
+				m.scanning = true
+				return m, m.doScan
 			}
-			return m, nil
-		}
 
-		switch msg.String() {
-		case "q", "ctrl+c":
-			if m.cancelCtx != nil {
-				m.cancelCtx()
+			if msg.String() == ":" && !m.commandMode && !m.scanning {
+				m.commandMode = true
+				m.textInput.SetValue("")
+				m.textInput.Focus()
+				return m, nil
 			}
-			return m, tea.Quit
-		case "r":
-			m.scanning = true
-			return m, m.doScan
 		}
 
 	case watcher.FileChangeMsg:
@@ -219,7 +259,7 @@ func (m Model) View() string {
 		Width(m.width).
 		Padding(0, 1)
 
-	header := headerStyle.Render(fmt.Sprintf("🔒 ScriptKiller Security Scanner - %s", m.targetPath))
+	header := headerStyle.Render(fmt.Sprintf("🔒 ScriptKiller Security Scanner - %s", m.directories[0]))
 
 	var content string
 	if m.scanning {
@@ -265,14 +305,13 @@ func (m Model) View() string {
 	}
 
 	statusBar := m.renderStatusBar()
-	helpText := theme.S().Subtle.Render(" q: quit • r: rescan • ↑/↓: navigate • /: filter")
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
 		content,
 		statusBar,
-		helpText,
+		m.renderCommandBar(),
 	)
 }
 
@@ -399,6 +438,28 @@ func (m Model) renderStatusBar() string {
 	return statusStyle.Render(leftContent)
 }
 
+func (m Model) renderCommandBar() string {
+	theme := styles.CurrentTheme()
+
+	// statusStyle := lipgloss.NewStyle().
+	// 	Foreground(theme.FgMuted).
+	// 	BorderStyle(lipgloss.NormalBorder()).
+	// 	BorderTop(true).
+	// 	BorderForeground(theme.Border).
+	// 	Width(m.width).
+	// 	Padding(0, 1)
+
+	if m.commandMode {
+		return m.textInput.View()
+	} else if m.statusMessage == "" {
+		helpText := theme.S().Subtle.Render(" q | quit • r | rescan • ↑/↓ | navigate • / | filter • : | Enter Command")
+		return helpText
+	} else {
+		style := lipgloss.NewStyle().Foreground(styles.CurrentTheme().Error)
+		return style.Render(m.statusMessage)
+	}
+}
+
 func StartTUI(targetPath string) error {
 	m := NewModel(targetPath)
 	p := tea.NewProgram(
@@ -409,4 +470,44 @@ func StartTUI(targetPath string) error {
 
 	_, err := p.Run()
 	return err
+}
+
+func (m Model) handleCommand(cmd string) (tea.Model, tea.Cmd) {
+	parts := strings.Fields(cmd)
+
+	if len(parts) == 0 {
+		m.commandMode = false
+		return m, nil
+	}
+
+	switch parts[0] {
+	case "add", "a":
+		if len(parts) >= 3 && parts[1] == "dir" {
+			dir := parts[2]
+			m.directories = append(m.directories, dir)
+			// reinitialize scanner + watcher
+		}
+	case "remove", "rm":
+		if len(parts) >= 3 && parts[1] == "dir" {
+		}
+	case "list", "ls":
+		if len(parts) >= 2 && parts[1] == "dirs" {
+			// maybe open a small modal or show in detail view
+		}
+	default:
+		m.statusMessage = "Unrecognized Command"
+	}
+
+	m.commandMode = false
+	return m, nil
+}
+
+func removeString(list []string, target string) []string {
+	result := []string{}
+	for _, v := range list {
+		if v != target {
+			result = append(result, v)
+		}
+	}
+	return result
 }
