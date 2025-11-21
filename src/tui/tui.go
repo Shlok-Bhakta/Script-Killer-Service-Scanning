@@ -294,9 +294,7 @@ func (m Model) View() string {
 
 	header := headerStyle.Render(fmt.Sprintf("🔒 ScriptKiller Security Scanner - %s", m.directories[0]))
 
-	dirStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(theme.Border)
+	dirStyle := defaultWrapperStyle(m.width, dirHeight)
 
 	if m.focus == FocusDirectories {
 		dirStyle = dirStyle.BorderForeground(theme.Accent)
@@ -366,6 +364,15 @@ func (m Model) View() string {
 		statusBar,
 		m.renderCommandBar(),
 	)
+}
+
+func defaultWrapperStyle(width int, height int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.CurrentTheme().Border).
+		Width(width-2).
+		Height(height).
+		Padding(1, 2)
 }
 
 func (m Model) renderDetail(finding *tools.Finding, width int) string {
