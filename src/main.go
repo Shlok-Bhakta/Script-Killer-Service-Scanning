@@ -19,6 +19,7 @@ func main() {
 	args := os.Args[1:]
 	cwd := "."
 	noTUI := false
+	debug := false
 
 	for i, arg := range args {
 		if arg == "-h" || arg == "--help" {
@@ -26,13 +27,18 @@ func main() {
 			fmt.Println("Options:")
 			fmt.Println("  --help, -h: Show this help message")
 			fmt.Println("  --no-tui: Scan and print results without TUI")
+			fmt.Println("  --debug: Enable debug logging to stdout")
 			return
 		}
 		if arg == "--no-tui" {
 			noTUI = true
 			continue
 		}
-		if i == len(args)-1 && arg != "--no-tui" {
+		if arg == "--debug" {
+			debug = true
+			continue
+		}
+		if i == len(args)-1 && arg != "--no-tui" && arg != "--debug" {
 			cwd = arg
 		}
 	}
@@ -44,6 +50,17 @@ func main() {
 			log.Fatal("Scan failed", "error", err)
 		}
 		return
+	}
+
+	if debug {
+		f, err := os.OpenFile("scriptkiller-debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to open log file: %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		log.SetOutput(f)
+		log.SetLevel(log.DebugLevel)
 	}
 
 	if err := tui.StartTUI(cwd); err != nil {
