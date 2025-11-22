@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"scriptkiller/src/tools"
 	"scriptkiller/src/tui/styles"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -95,8 +96,13 @@ func (m Model) renderDetail(finding *tools.Finding, width int) string {
 
 	if len(finding.Metadata) > 0 {
 		b.WriteString(theme.S().Subtitle.Render("Metadata") + "\n")
-		for k, v := range finding.Metadata {
-			b.WriteString(theme.S().Muted.Render(fmt.Sprintf("  %s: %v", k, v)) + "\n")
+		keys := make([]string, 0, len(finding.Metadata))
+		for k := range finding.Metadata {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			b.WriteString(theme.S().Muted.Render(fmt.Sprintf("  %s: %v", k, finding.Metadata[k])) + "\n")
 		}
 	}
 
