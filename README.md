@@ -32,3 +32,42 @@ Making security scanning so easy and beautiful that developers actually want to 
 - **Pre-commit Hook**: Automatic scanning on every commit
 - **CI/CD Pipeline**: GitHub Action integration for automated checks
 - **Live Mode**: Continuous scanning during development (stretch goal)
+
+## MCP Integration (opencode)
+
+Script Killer can run as an MCP (Model Context Protocol) server, allowing AI assistants like opencode to scan your codebase for vulnerabilities.
+
+### Setup
+
+1. Build the binary:
+   ```bash
+   make build
+   ```
+
+2. Add to your `opencode.json` in your project root:
+   ```json
+   {
+     "mcp": {
+       "scriptkiller": {
+         "type": "local",
+         "command": ["./bin/scriptkiller", "--mcp"]
+       }
+     }
+   }
+   ```
+
+3. If the binary is not in your project directory, specify the full path or add it to PATH:
+   ```bash
+   PATH=/path/to/scriptkiller/bin:$PATH opencode
+   ```
+
+### Available MCP Tools
+
+- **scan**: Run security scan on a directory
+- **list_findings**: List current scan findings (optionally filter by severity)
+- **detect_languages**: Detect programming languages in a directory
+
+### Available MCP Resources
+
+- `scriptkiller://findings` - Current scan findings
+- `scriptkiller://languages` - Detected languages
