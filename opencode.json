@@ -3,7 +3,8 @@
   "mcp": {
     "scriptkiller": {
       "type": "local",
-      "command": ["./bin/scriptkiller", "--mcp"]
+      "command": ["scriptkiller", "--mcp"]
     }
   }
 }
+
