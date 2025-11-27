@@ -4,6 +4,7 @@ import (
 	"scriptkiller/src/tui/components/commandbar"
 	"scriptkiller/src/tui/components/details"
 	"scriptkiller/src/tui/components/dirlist"
+	"scriptkiller/src/tui/components/endpointlist"
 	"scriptkiller/src/tui/components/findings"
 	"scriptkiller/src/tui/components/header"
 	"scriptkiller/src/tui/components/statusbar"
@@ -27,13 +28,14 @@ type Model struct {
 	width  int
 	height int
 
-	orchestrator        orchestrator.Model
-	headerComponent     header.Model
-	dirlistComponent    dirlist.Model
-	findingsComponent   findings.Model
-	detailsComponent    details.Model
-	statusbarComponent  statusbar.Model
-	commandbarComponent commandbar.Model
+	orchestrator          orchestrator.Model
+	headerComponent       header.Model
+	dirlistComponent      dirlist.Model
+	endpointListComponent endpointlist.Model
+	findingsComponent     findings.Model
+	detailsComponent      details.Model
+	statusbarComponent    statusbar.Model
+	commandbarComponent   commandbar.Model
 
 	focus Focus
 }
@@ -45,14 +47,15 @@ func NewModel(targetPath string) Model {
 	findingsComp.SetFocused(true)
 
 	return Model{
-		orchestrator:        orchestrator.New(targetPath),
-		headerComponent:     header.New(targetPath),
-		dirlistComponent:    dirlist.New(targetPath),
-		findingsComponent:   findingsComp,
-		detailsComponent:    details.New(),
-		statusbarComponent:  statusbar.New(),
-		commandbarComponent: commandbar.New(),
-		focus:               FocusFindings,
+		orchestrator:          orchestrator.New(targetPath),
+		headerComponent:       header.New(targetPath),
+		dirlistComponent:      dirlist.New(targetPath),
+		endpointListComponent: endpointlist.New(),
+		findingsComponent:     findingsComp,
+		detailsComponent:      details.New(),
+		statusbarComponent:    statusbar.New(),
+		commandbarComponent:   commandbar.New(),
+		focus:                 FocusFindings,
 	}
 }
 
