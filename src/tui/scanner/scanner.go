@@ -80,7 +80,7 @@ func (s *Scanner) GetAllFindings() []tools.Finding {
 		findings = append(findings, output.Info...)
 		findings = append(findings, output.Other...)
 	}
-	return findings
+	return tools.CollapseFindingsToFindings(findings)
 }
 
 func (s *Scanner) GetTargetPath() string {

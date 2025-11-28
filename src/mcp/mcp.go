@@ -104,11 +104,13 @@ func (m *MCPServer) handleScan(ctx context.Context, request mcp.CallToolRequest)
 		allFindings = append(allFindings, output.Other...)
 	}
 
+	collapsedFindings := tools.CollapseFindingsToFindings(allFindings)
+
 	result := map[string]any{
 		"path":           path,
 		"languages":      languages,
-		"total_findings": len(allFindings),
-		"findings":       allFindings,
+		"total_findings": len(collapsedFindings),
+		"findings":       collapsedFindings,
 		"errors":         len(errs),
 	}
 
