@@ -102,7 +102,11 @@ func (m Model) renderDetail(finding *tools.Finding, width int) string {
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			b.WriteString(theme.S().Muted.Render(fmt.Sprintf("  %s: %v", k, finding.Metadata[k])) + "\n")
+			v := finding.Metadata[k]
+			if len(v) > 200 {
+				v = v[:200] + "..."
+			}
+			b.WriteString(theme.S().Muted.Render(fmt.Sprintf("  %s: %s", k, v)) + "\n")
 		}
 	}
 
