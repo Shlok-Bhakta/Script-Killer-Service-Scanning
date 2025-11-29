@@ -97,11 +97,35 @@ func (m *MCPServer) handleScan(ctx context.Context, request mcp.CallToolRequest)
 	toolOutputs, errs := tools.RunAllToolsForLanguage(m.tools, languages, path)
 
 	var allFindings []tools.Finding
-	for _, output := range toolOutputs {
-		allFindings = append(allFindings, output.Critical...)
-		allFindings = append(allFindings, output.Warnings...)
-		allFindings = append(allFindings, output.Info...)
-		allFindings = append(allFindings, output.Other...)
+	for toolName, output := range toolOutputs {
+		for _, f := range output.Critical {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			allFindings = append(allFindings, f)
+		}
+		for _, f := range output.Warnings {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			allFindings = append(allFindings, f)
+		}
+		for _, f := range output.Info {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			allFindings = append(allFindings, f)
+		}
+		for _, f := range output.Other {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			allFindings = append(allFindings, f)
+		}
 	}
 
 	collapsedFindings := tools.CollapseFindingsToFindings(allFindings)

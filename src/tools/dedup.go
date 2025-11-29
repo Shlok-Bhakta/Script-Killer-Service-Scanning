@@ -19,6 +19,7 @@ type CollapsedFinding struct {
 	VulnCount      int
 	VulnIDs        []string
 	Location       Location
+	Sources        map[string]bool
 }
 
 func CollapseFindings(findings []Finding) []CollapsedFinding {
@@ -41,8 +42,13 @@ func CollapseFindings(findings []Finding) []CollapsedFinding {
 				Severity:       f.Severity,
 				Location:       f.Location,
 				VulnIDs:        []string{},
+				Sources:        make(map[string]bool),
 			}
 			groups[key] = group
+		}
+
+		if src := f.Metadata["source"]; src != "" {
+			group.Sources[src] = true
 		}
 
 		vulnID := f.Metadata["vuln_id"]
@@ -89,6 +95,17 @@ func CollapseFindingsToFindings(findings []Finding) []Finding {
 			suggestion = fmt.Sprintf("Upgrade to %s to fix %d vulnerabilities", c.FixVersion, c.VulnCount)
 		}
 
+		vulnIDsDisplay := c.VulnIDs
+		if len(vulnIDsDisplay) > 5 {
+			vulnIDsDisplay = append(vulnIDsDisplay[:5], fmt.Sprintf("... and %d more", len(c.VulnIDs)-5))
+		}
+
+		sources := make([]string, 0, len(c.Sources))
+		for src := range c.Sources {
+			sources = append(sources, src)
+		}
+		sort.Strings(sources)
+
 		f := Finding{
 			ID:         fmt.Sprintf("%s-%s", c.Package, c.CurrentVersion),
 			Severity:   c.Severity,
@@ -100,7 +117,8 @@ func CollapseFindingsToFindings(findings []Finding) []Finding {
 				"version":    c.CurrentVersion,
 				"fixed":      c.FixVersion,
 				"vuln_count": fmt.Sprintf("%d", c.VulnCount),
-				"vuln_ids":   strings.Join(c.VulnIDs, ","),
+				"vuln_ids":   strings.Join(vulnIDsDisplay, ", "),
+				"source":     strings.Join(sources, ", "),
 			},
 			Suppressed: false,
 		}
