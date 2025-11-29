@@ -84,8 +84,19 @@ func CollapseFindings(findings []Finding) []CollapsedFinding {
 }
 
 func CollapseFindingsToFindings(findings []Finding) []Finding {
-	collapsed := CollapseFindings(findings)
-	result := make([]Finding, 0, len(collapsed))
+	var nonPackageFindings []Finding
+	var packageFindings []Finding
+
+	for _, f := range findings {
+		if f.Metadata["package"] == "" {
+			nonPackageFindings = append(nonPackageFindings, f)
+		} else {
+			packageFindings = append(packageFindings, f)
+		}
+	}
+
+	collapsed := CollapseFindings(packageFindings)
+	result := make([]Finding, 0, len(collapsed)+len(nonPackageFindings))
 
 	for _, c := range collapsed {
 		msg := fmt.Sprintf("%s@%s has %d vulnerabilities", c.Package, c.CurrentVersion, c.VulnCount)
@@ -124,6 +135,15 @@ func CollapseFindingsToFindings(findings []Finding) []Finding {
 		}
 		result = append(result, f)
 	}
+
+	result = append(result, nonPackageFindings...)
+
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Severity != result[j].Severity {
+			return severityRank(result[i].Severity) > severityRank(result[j].Severity)
+		}
+		return result[i].ID < result[j].ID
+	})
 
 	return result
 }
