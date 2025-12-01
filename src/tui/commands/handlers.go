@@ -5,9 +5,13 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"scriptkiller/src/tui/components/dirlist"
+	"scriptkiller/src/tui/components/endpointlist"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
+
+const STATUS_TIMEOUT = time.Second * 3
 
 type StatusMsg struct {
 	Message string
@@ -36,17 +40,28 @@ func HandleCommand(cmd string) tea.Cmd {
 }
 
 func handleAdd(parts []string) tea.Cmd {
-	if len(parts) >= 3 && parts[1] == "dir" {
-		dir := parts[2]
-		return tea.Batch(
-			func() tea.Msg {
-				return dirlist.DirectoryAddedMsg{Path: dir}
+	if len(parts) >= 3 {
+		switch parts[1] {
+		case "endpoint":
+			addr := parts[2]
+			return tea.Batch(func() tea.Msg {
+				return endpointlist.EndpointAddedMsg{Address: addr}
 			},
-			sendStatus(fmt.Sprintf("Added directory: %s", dir), false),
-			clearStatusAfter(time.Second*3),
-		)
+				sendStatus(fmt.Sprintf("Added endpoint: %s", addr), false),
+				clearStatusAfter(STATUS_TIMEOUT),
+			)
+		case "dir":
+			dir := parts[2]
+			return tea.Batch(
+				func() tea.Msg {
+					return dirlist.DirectoryAddedMsg{Path: dir}
+				},
+				sendStatus(fmt.Sprintf("Added directory: %s", dir), false),
+				clearStatusAfter(STATUS_TIMEOUT),
+			)
+		}
 	}
-	return sendStatus("Usage: add dir <path>", true)
+	return sendStatus("Usage: add <type> \n Available types: dir endpoint", true)
 }
 
 func handleRemove(parts []string) tea.Cmd {
