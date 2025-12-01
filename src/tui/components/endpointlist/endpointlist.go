@@ -114,11 +114,7 @@ func (m Model) View(width, height int, focused bool) string {
 
 	if focused {
 		style = style.BorderForeground(theme.Accent)
-		m.list.Title = "Endpoints [a]dd"
-	} else {
-		m.list.Title = "Endpoints"
 	}
-
 	m.list.SetHeight(height)
 	m.list.SetWidth(width - 4)
 
