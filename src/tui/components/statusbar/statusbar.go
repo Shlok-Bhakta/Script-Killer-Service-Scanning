@@ -10,15 +10,16 @@ import (
 )
 
 type Model struct {
-	scanning  bool
-	scanTime  string
-	critCount int
-	warnCount int
-	infoCount int
+	scanning     bool
+	scanTime     string
+	critCount    int
+	warnCount    int
+	infoCount    int
+	selectedScan string
 }
 
-func New() Model {
-	return Model{}
+func New(selected string) Model {
+	return Model{selectedScan: selected}
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -47,6 +48,8 @@ func (m Model) View(width int) string {
 		Padding(0, 1)
 
 	leftContent := ""
+
+	rightContent := fmt.Sprintf("Selected Scanner: %s", m.selectedScan)
 
 	if m.scanning {
 		leftContent = "⠋ Scanning..."
@@ -90,7 +93,19 @@ func (m Model) View(width int) string {
 		}
 	}
 
-	return style.Render(leftContent)
+	left := lipgloss.NewStyle().
+		Width(width / 2).
+		Align(lipgloss.Left).
+		Render(leftContent)
+
+	right := lipgloss.NewStyle().
+		Width(width / 2).
+		Align(lipgloss.Right).
+		Render(rightContent)
+
+	combined := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
+
+	return style.Render(combined)
 }
 
 func (m *Model) SetCounts(crit, warn, info int) {

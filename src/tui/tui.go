@@ -54,7 +54,7 @@ func NewModel(targetPath string) Model {
 		endpointListComponent: endpointlist.New(),
 		findingsComponent:     findingsComp,
 		detailsComponent:      details.New(),
-		statusbarComponent:    statusbar.New(),
+		statusbarComponent:    statusbar.New(targetPath),
 		commandbarComponent:   commandbar.New(),
 		focus:                 FocusFindings,
 	}
@@ -175,6 +175,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	m.commandbarComponent, cmd = m.commandbarComponent.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.statusbarComponent, cmd = m.statusbarComponent.Update(msg)
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
