@@ -30,6 +30,7 @@ func New(targetPath string) *Scanner {
 			tools.NewGosecTool(),
 			tools.NewOSVScannerTool(),
 			tools.NewGrypeTool(),
+			tools.NewBanditPyTool(),
 		},
 	}
 }
