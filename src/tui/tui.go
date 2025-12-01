@@ -80,19 +80,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case FocusDirectories:
 				m.focus = FocusEndpoints
 				m.findingsComponent.SetFocused(true)
-				m.dirlistComponent.SetFocused(false)
-				m.commandbarComponent.SetFocused(false)
 			case FocusEndpoints:
 				m.focus = FocusFindings
 				m.endpointListComponent.SetFocused(true)
 			case FocusFindings:
 				m.focus = FocusCommand
 				m.commandbarComponent.SetFocused(true)
-				m.findingsComponent.SetFocused(false)
 			case FocusCommand:
 				m.focus = FocusDirectories
 				m.dirlistComponent.SetFocused(true)
-				m.commandbarComponent.SetFocused(false)
 			}
 			return m, nil
 		}
