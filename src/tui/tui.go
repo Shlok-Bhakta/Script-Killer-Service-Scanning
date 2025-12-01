@@ -21,6 +21,7 @@ type Focus int
 const (
 	FocusFindings Focus = iota
 	FocusDirectories
+	FocusEndpoints
 	FocusCommand
 )
 
@@ -77,10 +78,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "tab" {
 			switch m.focus {
 			case FocusDirectories:
-				m.focus = FocusFindings
+				m.focus = FocusEndpoints
 				m.findingsComponent.SetFocused(true)
 				m.dirlistComponent.SetFocused(false)
 				m.commandbarComponent.SetFocused(false)
+			case FocusEndpoints:
+				m.focus = FocusFindings
+				m.endpointListComponent.SetFocused(true)
 			case FocusFindings:
 				m.focus = FocusCommand
 				m.commandbarComponent.SetFocused(true)
@@ -180,7 +184,12 @@ func (m Model) View() string {
 	headerView := m.headerComponent.View(m.width)
 
 	m.dirlistComponent.SetFocused(m.focus == FocusDirectories)
-	directoriesView := m.dirlistComponent.View(m.width, dirHeight, m.focus == FocusDirectories)
+
+	halfWidth := m.width / 2
+	dirView := m.dirlistComponent.View(halfWidth, dirHeight, m.focus == FocusDirectories)
+	endpointView := m.endpointListComponent.View(halfWidth, dirHeight, m.focus == FocusEndpoints)
+
+	scanPointView := lipgloss.JoinHorizontal(lipgloss.Top, dirView, endpointView)
 
 	var content string
 	if m.orchestrator.IsScanning() {
@@ -216,7 +225,7 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		headerView,
-		directoriesView,
+		scanPointView,
 		content,
 		statusBarView,
 		commandBarView,
