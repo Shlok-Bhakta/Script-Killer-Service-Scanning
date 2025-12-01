@@ -1,6 +1,10 @@
 # Script Killer - Universal Security Scanner CLI
 
-An everything scanner CLI tool that makes security scanning beautiful and effortless across all your projects.
+An everything program scanner CLI tool that makes security scanning beautiful and effortless across all your projects.
+
+## Project Overview
+
+In a world where the threat of cyberattacks is growing faster than ever, developers face increased pressure to secure their projects and services. Many projects utilize more than one programming language, and it can be quite costly to pursue the idea of having a dedicated cyber security team to manage vulnerabilities within the code. To address this challenge, our group came together to produce a universal language security scanner that is designed to bring simplicity to the risk management within developers repos. Through the use of various CLI scanning tools like OSVScanner, Bandit, GoSec, and more, this tool provides a high quality static analysis of projects by pooling these tool into a single interface. This makes it easier for smaller developers to analyze and find vulnerabilities within their project code and manage the risks appropriately for a cheaper alternative than to have designated secuirty professionals.
 
 ## Project Idea
 
@@ -16,7 +20,7 @@ Stop bad code before it even gets committed. Script Killer is a universal securi
 
 ## Philosophy
 
-Making security scanning so easy and beautiful that developers actually want to use it. We're essentially building the world's prettiest bash script - but one that actually stops vulnerable code from making it into your repo.
+Making security scanning so easy, accessible, and beautiful that developers actually want to use it. We're essentially building the world's prettiest bash script - but one that actually stops vulnerable code from making it into your repo. 
 
 ## How It Works
 
@@ -71,3 +75,10 @@ Script Killer can run as an MCP (Model Context Protocol) server, allowing AI ass
 
 - `scriptkiller://findings` - Current scan findings
 - `scriptkiller://languages` - Detected languages
+
+## Implemented Tools
+- GoSec - https://github.com/securego/gosec
+- Grype - https://github.com/anchore/grype
+- OSVScanner - https://github.com/google/osv-scanner
+- Bandit - https://github.com/PyCQA/bandit
+- Gitleaks - https://github.com/gitleaks/gitleaks
