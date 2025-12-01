@@ -87,6 +87,6 @@ func (m *Model) SetFocused(focused bool) {
 	m.focused = focused
 }
 
-func (m Model) GetDirectories() []string {
+func (m Model) GetEndpoints() []string {
 	return m.endpoints
 }

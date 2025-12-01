@@ -76,13 +76,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if msg.String() == "tab" {
+			//clear our focus before setting
+			m.findingsComponent.SetFocused(false)
+			m.commandbarComponent.SetFocused(false)
+			m.dirlistComponent.SetFocused(false)
+			m.endpointListComponent.SetFocused(false)
+
+			//switch focus based on location
 			switch m.focus {
 			case FocusDirectories:
 				m.focus = FocusEndpoints
-				m.findingsComponent.SetFocused(true)
+				m.endpointListComponent.SetFocused(true)
 			case FocusEndpoints:
 				m.focus = FocusFindings
-				m.endpointListComponent.SetFocused(true)
+				m.findingsComponent.SetFocused(true)
 			case FocusFindings:
 				m.focus = FocusCommand
 				m.commandbarComponent.SetFocused(true)
@@ -98,10 +105,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		if m.focus == FocusCommand {
+		switch m.focus {
+		case FocusCommand:
 			m.commandbarComponent, cmd = m.commandbarComponent.Update(msg)
 			return m, cmd
-		} else if m.focus == FocusFindings {
+		case FocusFindings:
 			if !m.orchestrator.IsScanning() {
 				if msg.String() == "r" {
 					return m, m.orchestrator.TriggerScan()
@@ -109,8 +117,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.findingsComponent, cmd = m.findingsComponent.Update(msg)
 				return m, cmd
 			}
-		} else if m.focus == FocusDirectories {
+		case FocusDirectories:
 			m.dirlistComponent, cmd = m.dirlistComponent.Update(msg)
+			return m, cmd
+		case FocusEndpoints:
+			m.endpointListComponent, cmd = m.endpointListComponent.Update(msg)
 			return m, cmd
 		}
 
@@ -147,6 +158,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(dirs) > 0 {
 			m.headerComponent.SetPath(dirs[0])
 		}
+		return m, tea.Batch(cmds...)
+	case endpointlist.EndpointAddedMsg:
+		m.endpointListComponent, cmd = m.endpointListComponent.Update(msg)
+		cmds = append(cmds, cmd)
+
 		return m, tea.Batch(cmds...)
 	}
 
