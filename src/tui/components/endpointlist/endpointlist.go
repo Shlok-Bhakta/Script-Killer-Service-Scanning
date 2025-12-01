@@ -28,7 +28,7 @@ func New() Model {
 	endpoints := []list.Item{}
 
 	endpointList := list.New(endpoints, list.NewDefaultDelegate(), 0, 0)
-	endpointList.Title = "Directories"
+	endpointList.Title = "Endpoints"
 	endpointList.SetShowFilter(false)
 	endpointList.SetShowHelp(false)
 	endpointList.SetShowStatusBar(false)
