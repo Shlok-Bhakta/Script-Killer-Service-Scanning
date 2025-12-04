@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"scriptkiller/src/tui"
@@ -43,6 +44,13 @@ func main() {
 			cwd = arg
 		}
 	}
+
+	absPath, err := filepath.Abs(cwd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get absolute path: %v\n", err)
+		os.Exit(1)
+	}
+	cwd = absPath
 
 	if noTUI {
 		log.SetOutput(os.Stdout)

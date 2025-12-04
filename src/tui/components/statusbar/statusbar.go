@@ -2,6 +2,7 @@ package statusbar
 
 import (
 	"fmt"
+	"scriptkiller/src/tui/components/dirlist"
 	"scriptkiller/src/tui/orchestrator"
 	"scriptkiller/src/tui/styles"
 
@@ -23,13 +24,17 @@ func New(selected string) Model {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case orchestrator.ScanStartedMsg:
 		m.scanning = true
 		return m, nil
 
 	case orchestrator.ScanCompleteMsg:
 		m.scanning = false
+		return m, nil
+
+	case dirlist.DirectorySelectedMsg:
+		m.selectedScan = msg.Path
 		return m, nil
 	}
 
@@ -100,7 +105,8 @@ func (m Model) View(width int) string {
 
 	right := lipgloss.NewStyle().
 		Width(width / 2).
-		Align(lipgloss.Right).
+		Align(lipgloss.Left).
+		MaxHeight(1). // or remove to allow multiple lines
 		Render(rightContent)
 
 	combined := lipgloss.JoinHorizontal(lipgloss.Top, left, right)

@@ -3,10 +3,11 @@ package dirlist
 import (
 	"path/filepath"
 
+	"scriptkiller/src/tui/styles"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"scriptkiller/src/tui/styles"
 )
 
 type directoryItem string
@@ -16,6 +17,10 @@ func (d directoryItem) Description() string { return "" }
 func (d directoryItem) FilterValue() string { return string(d) }
 
 type DirectoryAddedMsg struct {
+	Path string
+}
+
+type DirectorySelectedMsg struct {
 	Path string
 }
 
@@ -62,6 +67,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	if m.focused {
 		m.list, cmd = m.list.Update(msg)
+
+		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "enter" {
+			i, ok := m.list.SelectedItem().(directoryItem)
+			if ok {
+				return m, func() tea.Msg {
+					return DirectorySelectedMsg{Path: string(i)}
+				}
+			}
+		}
 	}
 
 	return m, cmd
