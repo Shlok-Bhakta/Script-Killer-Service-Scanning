@@ -20,6 +20,10 @@ type EndpointAddedMsg struct {
 	Address string
 }
 
+type EndpointSelectedMsg struct {
+	Address string
+}
+
 type Model struct {
 	list      list.Model
 	endpoints []string
@@ -97,6 +101,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	if m.focused && !m.showPopup {
 		m.list, cmd = m.list.Update(msg)
+
+		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "enter" {
+			i, ok := m.list.SelectedItem().(endpoint)
+			if ok {
+				return m, func() tea.Msg {
+					return EndpointSelectedMsg{Address: string(i)}
+				}
+			}
+		}
 	}
 
 	return m, cmd

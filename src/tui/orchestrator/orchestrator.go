@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"scriptkiller/src/tui/components/dirlist"
+	"scriptkiller/src/tui/components/endpointlist"
 	"scriptkiller/src/tui/scanner"
 	"scriptkiller/src/tui/watcher"
 
@@ -24,6 +25,7 @@ type Model struct {
 	scanTime string
 	ctx      context.Context
 	cancel   context.CancelFunc
+	scanType scanner.ScanType
 }
 
 func New(targetPath string) Model {
@@ -32,10 +34,11 @@ func New(targetPath string) Model {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return Model{
-		scanner: s,
-		watcher: w,
-		ctx:     ctx,
-		cancel:  cancel,
+		scanner:  s,
+		watcher:  w,
+		ctx:      ctx,
+		cancel:   cancel,
+		scanType: scanner.Directory,
 	}
 }
 
@@ -49,7 +52,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) doScan() tea.Msg {
-	result, err := m.scanner.Scan(m.ctx)
+	result, err := m.scanner.Scan(m.ctx, m.scanType)
 	return ScanCompleteMsg{Result: result, Err: err}
 }
 
@@ -76,7 +79,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.cancel != nil {
 			m.cancel()
 		}
+		m.scanType = scanner.Directory
 		m.scanner.SetTargetPath(msg.Path)
+	case endpointlist.EndpointSelectedMsg:
+		if m.cancel != nil {
+			m.cancel()
+		}
+		m.scanType = scanner.Endpoint
+		m.scanner.SetTargetPath(msg.Address)
 	}
 
 	return m, nil

@@ -2,6 +2,7 @@ package nix
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -109,7 +110,37 @@ func RunNixShellWithOutput(packages []string, command string, args ...string) ([
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	output, err := cmd.Output()
-	
+
+	if err != nil {
+		log.Error("Failed to run nix-shell", "error", err, "stderr", stderr.String())
+		return output, err
+	}
+
+	log.Debug("nix-shell completed successfully")
+	return output, nil
+}
+
+func RunNixShellWithOutputCtx(ctx context.Context, packages []string, command string, args ...string) ([]byte, error) {
+	log.Debug("Getting nix-portable path")
+	nixPath, err := getNixPortablePath()
+	if err != nil {
+		log.Error("Failed to get nix-portable", "error", err)
+		return nil, err
+	}
+
+	nixArgs := []string{"nix-shell", "-I", "nixpkgs=https://github.com/NixOS/nixpkgs/archive/91c9a64ce2a84e648d0cf9671274bb9c2fb9ba60.tar.gz", "-p"}
+	nixArgs = append(nixArgs, packages...)
+	nixArgs = append(nixArgs, "--run", command+" "+joinArgs(args))
+
+	log.Info("Running nix-shell with output capture", "packages", packages, "command", command)
+
+	cmd := exec.CommandContext(ctx, nixPath, nixArgs...)
+	cmd.Env = append(os.Environ(), "LC_ALL=C", "GOTOOLCHAIN=local")
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+
 	if err != nil {
 		log.Error("Failed to run nix-shell", "error", err, "stderr", stderr.String())
 		return output, err

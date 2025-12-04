@@ -94,7 +94,7 @@ func runScan(path string) error {
 	ctx := context.Background()
 
 	log.Info("Starting security scan", "path", path)
-	result, err := s.Scan(ctx)
+	result, err := s.Scan(ctx, scanner.Directory)
 	if err != nil {
 		return err
 	}
