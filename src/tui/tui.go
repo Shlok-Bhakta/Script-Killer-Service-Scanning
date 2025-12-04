@@ -75,14 +75,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.endpointListComponent.IsPopupOpen() {
+			m.endpointListComponent, cmd = m.endpointListComponent.Update(msg)
+			return m, cmd
+		}
+
 		if msg.String() == "tab" {
-			//clear our focus before setting
 			m.findingsComponent.SetFocused(false)
 			m.commandbarComponent.SetFocused(false)
 			m.dirlistComponent.SetFocused(false)
 			m.endpointListComponent.SetFocused(false)
 
-			//switch focus based on location
 			switch m.focus {
 			case FocusDirectories:
 				m.focus = FocusEndpoints
@@ -235,9 +238,9 @@ func (m Model) View() string {
 	statusBarView := m.statusbarComponent.View(m.width)
 
 	m.commandbarComponent.SetFocused(m.focus == FocusCommand)
-	commandBarView := m.commandbarComponent.View(m.width, m.focus == FocusCommand)
+	commandBarView := m.commandbarComponent.View(m.width, m.focus == FocusCommand, commandbar.Focus(m.focus))
 
-	return lipgloss.JoinVertical(
+	baseView := lipgloss.JoinVertical(
 		lipgloss.Left,
 		headerView,
 		scanPointView,
@@ -245,6 +248,8 @@ func (m Model) View() string {
 		statusBarView,
 		commandBarView,
 	)
+
+	return m.endpointListComponent.RenderWithOverlay(baseView)
 }
 
 func StartTUI(targetPath string) error {
