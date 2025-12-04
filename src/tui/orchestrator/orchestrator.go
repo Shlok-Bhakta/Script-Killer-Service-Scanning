@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"scriptkiller/src/tui/components/dirlist"
-	"scriptkiller/src/tui/components/endpointlist"
 	"scriptkiller/src/tui/scanner"
 	"scriptkiller/src/tui/watcher"
 
@@ -81,12 +80,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		m.scanType = scanner.Directory
 		m.scanner.SetTargetPath(msg.Path)
-	case endpointlist.EndpointSelectedMsg:
-		if m.cancel != nil {
-			m.cancel()
-		}
-		m.scanType = scanner.Endpoint
-		m.scanner.SetTargetPath(msg.Address)
 	}
 
 	return m, nil

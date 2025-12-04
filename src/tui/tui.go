@@ -4,7 +4,6 @@ import (
 	"scriptkiller/src/tui/components/commandbar"
 	"scriptkiller/src/tui/components/details"
 	"scriptkiller/src/tui/components/dirlist"
-	"scriptkiller/src/tui/components/endpointlist"
 	"scriptkiller/src/tui/components/findings"
 	"scriptkiller/src/tui/components/header"
 	"scriptkiller/src/tui/components/statusbar"
@@ -29,14 +28,13 @@ type Model struct {
 	width  int
 	height int
 
-	orchestrator          orchestrator.Model
-	headerComponent       header.Model
-	dirlistComponent      dirlist.Model
-	endpointListComponent endpointlist.Model
-	findingsComponent     findings.Model
-	detailsComponent      details.Model
-	statusbarComponent    statusbar.Model
-	commandbarComponent   commandbar.Model
+	orchestrator        orchestrator.Model
+	headerComponent     header.Model
+	dirlistComponent    dirlist.Model
+	findingsComponent   findings.Model
+	detailsComponent    details.Model
+	statusbarComponent  statusbar.Model
+	commandbarComponent commandbar.Model
 
 	focus Focus
 }
@@ -48,15 +46,14 @@ func NewModel(targetPath string) Model {
 	findingsComp.SetFocused(true)
 
 	return Model{
-		orchestrator:          orchestrator.New(targetPath),
-		headerComponent:       header.New(targetPath),
-		dirlistComponent:      dirlist.New(targetPath),
-		endpointListComponent: endpointlist.New(),
-		findingsComponent:     findingsComp,
-		detailsComponent:      details.New(),
-		statusbarComponent:    statusbar.New(targetPath),
-		commandbarComponent:   commandbar.New(),
-		focus:                 FocusFindings,
+		orchestrator:        orchestrator.New(targetPath),
+		headerComponent:     header.New(targetPath),
+		dirlistComponent:    dirlist.New(targetPath),
+		findingsComponent:   findingsComp,
+		detailsComponent:    details.New(),
+		statusbarComponent:  statusbar.New(targetPath),
+		commandbarComponent: commandbar.New(),
+		focus:               FocusFindings,
 	}
 }
 
@@ -75,24 +72,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.endpointListComponent.IsPopupOpen() {
-			m.endpointListComponent, cmd = m.endpointListComponent.Update(msg)
-			return m, cmd
-		}
-
 		if msg.String() == "tab" {
 			m.findingsComponent.SetFocused(false)
 			m.commandbarComponent.SetFocused(false)
 			m.dirlistComponent.SetFocused(false)
-			m.endpointListComponent.SetFocused(false)
 
 			switch m.focus {
 			case FocusDirectories:
-				m.focus = FocusEndpoints
-				m.endpointListComponent.SetFocused(true)
-			case FocusEndpoints:
 				m.focus = FocusFindings
-				m.findingsComponent.SetFocused(true)
 			case FocusFindings:
 				m.focus = FocusCommand
 				m.commandbarComponent.SetFocused(true)
@@ -122,9 +109,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case FocusDirectories:
 			m.dirlistComponent, cmd = m.dirlistComponent.Update(msg)
-			return m, cmd
-		case FocusEndpoints:
-			m.endpointListComponent, cmd = m.endpointListComponent.Update(msg)
 			return m, cmd
 		}
 
@@ -162,11 +146,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.headerComponent.SetPath(dirs[0])
 		}
 		return m, tea.Batch(cmds...)
-	case endpointlist.EndpointAddedMsg:
-		m.endpointListComponent, cmd = m.endpointListComponent.Update(msg)
-		cmds = append(cmds, cmd)
-
-		return m, tea.Batch(cmds...)
 	}
 
 	m.orchestrator, cmd = m.orchestrator.Update(msg)
@@ -203,11 +182,7 @@ func (m Model) View() string {
 
 	m.dirlistComponent.SetFocused(m.focus == FocusDirectories)
 
-	halfWidth := m.width / 2
-	dirView := m.dirlistComponent.View(halfWidth, dirHeight, m.focus == FocusDirectories)
-	endpointView := m.endpointListComponent.View(halfWidth, dirHeight, m.focus == FocusEndpoints)
-
-	scanPointView := lipgloss.JoinHorizontal(lipgloss.Top, dirView, endpointView)
+	dirView := m.dirlistComponent.View(m.width, dirHeight, m.focus == FocusDirectories)
 
 	var content string
 	if m.orchestrator.IsScanning() {
@@ -243,13 +218,13 @@ func (m Model) View() string {
 	baseView := lipgloss.JoinVertical(
 		lipgloss.Left,
 		headerView,
-		scanPointView,
+		dirView,
 		content,
 		statusBarView,
 		commandBarView,
 	)
 
-	return m.endpointListComponent.RenderWithOverlay(baseView)
+	return baseView
 }
 
 func StartTUI(targetPath string) error {

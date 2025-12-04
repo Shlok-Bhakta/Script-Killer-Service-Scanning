@@ -3,7 +3,6 @@ package statusbar
 import (
 	"fmt"
 	"scriptkiller/src/tui/components/dirlist"
-	"scriptkiller/src/tui/components/endpointlist"
 	"scriptkiller/src/tui/orchestrator"
 	"scriptkiller/src/tui/styles"
 
@@ -44,9 +43,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case dirlist.DirectorySelectedMsg:
 		m.selectedScan = msg.Path
-		return m, nil
-	case endpointlist.EndpointSelectedMsg:
-		m.selectedScan = msg.Address
 		return m, nil
 	}
 

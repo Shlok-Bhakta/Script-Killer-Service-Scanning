@@ -24,11 +24,10 @@ type ScanResult struct {
 }
 
 type Scanner struct {
-	targetPath    string
-	dirTools      []tools.SecurityTool
-	endpointTools []tools.SecurityTool
-	mu            sync.RWMutex
-	lastResult    *ScanResult
+	targetPath string
+	dirTools   []tools.SecurityTool
+	mu         sync.RWMutex
+	lastResult *ScanResult
 }
 
 func New(targetPath string) *Scanner {
@@ -38,9 +37,6 @@ func New(targetPath string) *Scanner {
 			tools.NewGosecTool(),
 			tools.NewOSVScannerTool(),
 			tools.NewGrypeTool(),
-		},
-		endpointTools: []tools.SecurityTool{
-			tools.NewNiktoScannerTool(),
 		},
 	}
 }
@@ -60,8 +56,6 @@ func (s *Scanner) Scan(ctx context.Context, scanType ScanType) (*ScanResult, err
 	switch scanType {
 	case Directory:
 		selectedTools = s.dirTools
-	case Endpoint:
-		selectedTools = s.endpointTools
 	}
 
 	toolOutputs, errs := tools.RunAllToolsForLanguage(selectedTools, languages, s.targetPath)
