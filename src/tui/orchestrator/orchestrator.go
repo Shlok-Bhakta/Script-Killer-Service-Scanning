@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"scriptkiller/src/tui/components/dirlist"
 	"scriptkiller/src/tui/scanner"
 	"scriptkiller/src/tui/watcher"
 
@@ -71,6 +72,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.scanTime = fmt.Sprintf("%v", msg.Result.Duration)
 		}
 		return m, nil
+	case dirlist.DirectorySelectedMsg:
+		if m.cancel != nil {
+			m.cancel()
+		}
+		m.scanner.SetTargetPath(msg.Path)
 	}
 
 	return m, nil

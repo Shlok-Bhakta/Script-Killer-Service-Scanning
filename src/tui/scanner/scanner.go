@@ -86,3 +86,7 @@ func (s *Scanner) GetAllFindings() []tools.Finding {
 func (s *Scanner) GetTargetPath() string {
 	return s.targetPath
 }
+
+func (s *Scanner) SetTargetPath(path string) {
+	s.targetPath = path
+}

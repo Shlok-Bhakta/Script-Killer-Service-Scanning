@@ -17,6 +17,7 @@ type Model struct {
 	warnCount    int
 	infoCount    int
 	selectedScan string
+	errorMsg     string
 }
 
 func New(selected string) Model {
@@ -31,6 +32,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case orchestrator.ScanCompleteMsg:
 		m.scanning = false
+
+		if msg.Err != nil {
+			m.errorMsg = msg.Err.Error()
+		} else {
+			m.errorMsg = "" // clear previous errors on success
+		}
+
 		return m, nil
 
 	case dirlist.DirectorySelectedMsg:
@@ -58,6 +66,10 @@ func (m Model) View(width int) string {
 
 	if m.scanning {
 		leftContent = "⠋ Scanning..."
+	} else if m.errorMsg != "" {
+		leftContent = lipgloss.NewStyle().
+			Foreground(theme.Error).
+			Render("Scan failed: " + m.errorMsg)
 	} else {
 		badges := []string{}
 
