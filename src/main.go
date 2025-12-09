@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"scriptkiller/src/mcp"
@@ -50,6 +51,13 @@ func main() {
 			cwd = arg
 		}
 	}
+
+	absPath, err := filepath.Abs(cwd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to get absolute path: %v\n", err)
+		os.Exit(1)
+	}
+	cwd = absPath
 
 	if mcpMode {
 		m := mcp.New(cwd)
@@ -102,7 +110,7 @@ func runScan(path string) error {
 	ctx := context.Background()
 
 	log.Info("Starting security scan", "path", path)
-	result, err := s.Scan(ctx)
+	result, err := s.Scan(ctx, scanner.Directory)
 	if err != nil {
 		return err
 	}
