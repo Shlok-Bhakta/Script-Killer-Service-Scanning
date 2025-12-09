@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+<!DOCTYPE niktoscan SYSTEM "/usr/share/doc/nikto/nikto.dtd">
+<niktoscan hoststest="0" options="-Format xml -h onemorelevel.com -o test.xml" version="2.1.5" scanstart="Thu Dec  4 01:26:48 2025" scanend="Wed Dec 31 18:00:00 1969" scanelapsed=" seconds" nxmlversion="1.2">
+
+<scandetails targetip="173.255.208.104" targethostname="onemorelevel.com" targetport="80" targetbanner="nginx/1.14.2" starttime="2025-12-04 01:26:49" sitename="http://onemorelevel.com:80" siteip="http://173.255.208.104:80" hostheader="onemorelevel.com" errors="0" checks="6544">
+
+
+<item id="999986" osvdbid="0" osvdblink="http://osvdb.org/0" method="GET">
+<description><![CDATA[Retrieved via header: 1.1 varnish (Varnish/6.1)]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://onemorelevel.com:80/]]></namelink>
+<iplink><![CDATA[http://173.255.208.104:80/]]></iplink>
+</item>
+
+<item id="999986" osvdbid="0" osvdblink="http://osvdb.org/0" method="GET">
+<description><![CDATA[Retrieved x-powered-by header: PHP/5.6.30-0+deb8u1]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://onemorelevel.com:80/]]></namelink>
+<iplink><![CDATA[http://173.255.208.104:80/]]></iplink>
+</item>
+
+<item id="999976" osvdbid="0" osvdblink="http://osvdb.org/0" method="GET">
+<description><![CDATA[The anti-clickjacking X-Frame-Options header is not present.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://onemorelevel.com:80/]]></namelink>
+<iplink><![CDATA[http://173.255.208.104:80/]]></iplink>
+</item>
+
+<item id="999100" osvdbid="0" osvdblink="http://osvdb.org/0" method="GET">
+<description><![CDATA[Uncommon header 'x-varnish' found, with contents: 32848301 33196235]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://onemorelevel.com:80/]]></namelink>
+<iplink><![CDATA[http://173.255.208.104:80/]]></iplink>
+</item>
+
+<item id="999984" osvdbid="0" osvdblink="http://osvdb.org/0" method="GET">
+<description><![CDATA[Server leaks inodes via ETags, header found with file /favicon.ico, fields: 0x471e3e03 0x47e ]]></description>
+<uri><![CDATA[/favicon.ico]]></uri>
+<namelink><![CDATA[http://onemorelevel.com:80/favicon.ico]]></namelink>
+<iplink><![CDATA[http://173.255.208.104:80/favicon.ico]]></iplink>
+</item>
+
+<statistics elapsed="1764833231" itemsfound="" itemstested="6544" endtime="2025-12-04 01:27:11" />
+</scandetails>
+
+
+</niktoscan>

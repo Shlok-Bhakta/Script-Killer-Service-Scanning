@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"scriptkiller/src/tui/components/dirlist"
-	"scriptkiller/src/tui/components/endpointlist"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -42,14 +41,6 @@ func HandleCommand(cmd string) tea.Cmd {
 func handleAdd(parts []string) tea.Cmd {
 	if len(parts) >= 3 {
 		switch parts[1] {
-		case "endpoint":
-			addr := parts[2]
-			return tea.Batch(func() tea.Msg {
-				return endpointlist.EndpointAddedMsg{Address: addr}
-			},
-				sendStatus(fmt.Sprintf("Added endpoint: %s", addr), false),
-				clearStatusAfter(STATUS_TIMEOUT),
-			)
 		case "dir":
 			dir := parts[2]
 			return tea.Batch(

@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+type ScanType int
+
+const (
+	Directory = iota
+	Endpoint
+)
+
 type ScanResult struct {
 	Languages   map[string]int
 	ToolOutputs map[string]tools.ToolOutput
@@ -18,7 +25,7 @@ type ScanResult struct {
 
 type Scanner struct {
 	targetPath string
-	tools      []tools.SecurityTool
+	dirTools   []tools.SecurityTool
 	mu         sync.RWMutex
 	lastResult *ScanResult
 }
@@ -26,26 +33,36 @@ type Scanner struct {
 func New(targetPath string) *Scanner {
 	return &Scanner{
 		targetPath: targetPath,
-		tools: []tools.SecurityTool{
+		dirTools: []tools.SecurityTool{
 			tools.NewGosecTool(),
 			tools.NewOSVScannerTool(),
 			tools.NewGrypeTool(),
 			tools.NewBanditPyTool(),
 			tools.NewGitleaksTool(),
-			tools.NewCppcheckTool()
+			tools.NewCppcheckTool(),
+			tools.NewESLintSecurityTool(),
 		},
 	}
 }
 
-func (s *Scanner) Scan(ctx context.Context) (*ScanResult, error) {
+func (s *Scanner) Scan(ctx context.Context, scanType ScanType) (*ScanResult, error) {
 	startTime := time.Now()
-
-	languages, err := detector.DetectProjectLanguages(s.targetPath)
-	if err != nil {
-		return nil, err
+	var languages map[string]int
+	if scanType == Directory {
+		language, err := detector.DetectProjectLanguages(s.targetPath)
+		languages = language
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	toolOutputs, errs := tools.RunAllToolsForLanguage(s.tools, languages, s.targetPath)
+	selectedTools := s.dirTools
+	switch scanType {
+	case Directory:
+		selectedTools = s.dirTools
+	}
+
+	toolOutputs, errs := tools.RunAllToolsForLanguage(selectedTools, languages, s.targetPath)
 
 	result := &ScanResult{
 		Languages:   languages,
@@ -77,15 +94,43 @@ func (s *Scanner) GetAllFindings() []tools.Finding {
 	}
 
 	var findings []tools.Finding
-	for _, output := range s.lastResult.ToolOutputs {
-		findings = append(findings, output.Critical...)
-		findings = append(findings, output.Warnings...)
-		findings = append(findings, output.Info...)
-		findings = append(findings, output.Other...)
+	for toolName, output := range s.lastResult.ToolOutputs {
+		for _, f := range output.Critical {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
+		for _, f := range output.Warnings {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
+		for _, f := range output.Info {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
+		for _, f := range output.Other {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
 	}
-	return findings
+	return tools.CollapseFindingsToFindings(findings)
 }
 
 func (s *Scanner) GetTargetPath() string {
 	return s.targetPath
+}
+
+func (s *Scanner) SetTargetPath(path string) {
+	s.targetPath = path
 }

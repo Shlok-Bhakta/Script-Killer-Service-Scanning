@@ -44,3 +44,6 @@ pubspec.lock
 .RData
 
 Dockerfile
+
+nix-portable
+package.json

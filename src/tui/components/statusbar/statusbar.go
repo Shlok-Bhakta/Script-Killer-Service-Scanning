@@ -2,6 +2,7 @@ package statusbar
 
 import (
 	"fmt"
+	"scriptkiller/src/tui/components/dirlist"
 	"scriptkiller/src/tui/orchestrator"
 	"scriptkiller/src/tui/styles"
 
@@ -10,25 +11,38 @@ import (
 )
 
 type Model struct {
-	scanning  bool
-	scanTime  string
-	critCount int
-	warnCount int
-	infoCount int
+	scanning     bool
+	scanTime     string
+	critCount    int
+	warnCount    int
+	infoCount    int
+	selectedScan string
+	errorMsg     string
 }
 
-func New() Model {
-	return Model{}
+func New(selected string) Model {
+	return Model{selectedScan: selected}
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case orchestrator.ScanStartedMsg:
 		m.scanning = true
 		return m, nil
 
 	case orchestrator.ScanCompleteMsg:
 		m.scanning = false
+
+		if msg.Err != nil {
+			m.errorMsg = msg.Err.Error()
+		} else {
+			m.errorMsg = "" // clear previous errors on success
+		}
+
+		return m, nil
+
+	case dirlist.DirectorySelectedMsg:
+		m.selectedScan = msg.Path
 		return m, nil
 	}
 
@@ -48,8 +62,14 @@ func (m Model) View(width int) string {
 
 	leftContent := ""
 
+	rightContent := fmt.Sprintf("Selected Scanner: %s", m.selectedScan)
+
 	if m.scanning {
 		leftContent = "⠋ Scanning..."
+	} else if m.errorMsg != "" {
+		leftContent = lipgloss.NewStyle().
+			Foreground(theme.Error).
+			Render("Scan failed: " + m.errorMsg)
 	} else {
 		badges := []string{}
 
@@ -90,7 +110,20 @@ func (m Model) View(width int) string {
 		}
 	}
 
-	return style.Render(leftContent)
+	left := lipgloss.NewStyle().
+		Width(width / 2).
+		Align(lipgloss.Left).
+		Render(leftContent)
+
+	right := lipgloss.NewStyle().
+		Width(width / 2).
+		Align(lipgloss.Left).
+		MaxHeight(1). // or remove to allow multiple lines
+		Render(rightContent)
+
+	combined := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
+
+	return style.Render(combined)
 }
 
 func (m *Model) SetCounts(crit, warn, info int) {
