@@ -32,6 +32,10 @@ func New(targetPath string) *MCPServer {
 			tools.NewGosecTool(),
 			tools.NewOSVScannerTool(),
 			tools.NewGrypeTool(),
+			tools.NewBanditPyTool(),
+			tools.NewGitleaksTool(),
+			tools.NewCppcheckTool(),
+			tools.NewESLintSecurityTool(),
 		},
 	}
 

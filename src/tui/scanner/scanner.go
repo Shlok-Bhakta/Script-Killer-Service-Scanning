@@ -39,6 +39,7 @@ func New(targetPath string) *Scanner {
 			tools.NewGrypeTool(),
 			tools.NewBanditPyTool(),
 			tools.NewGitleaksTool(),
+			tools.NewCppcheckTool(),
 			tools.NewESLintSecurityTool(),
 		},
 	}
