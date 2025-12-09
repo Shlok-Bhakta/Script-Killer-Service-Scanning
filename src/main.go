@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"scriptkiller/src/mcp"
 	"scriptkiller/src/tui"
 	"scriptkiller/src/tui/scanner"
 
@@ -22,6 +23,7 @@ func main() {
 	cwd := "."
 	noTUI := false
 	debug := false
+	mcpMode := false
 
 	for i, arg := range args {
 		if arg == "-h" || arg == "--help" {
@@ -29,6 +31,7 @@ func main() {
 			fmt.Println("Options:")
 			fmt.Println("  --help, -h: Show this help message")
 			fmt.Println("  --no-tui: Scan and print results without TUI")
+			fmt.Println("  --mcp: Start as MCP server (stdio transport)")
 			fmt.Println("  --debug: Enable debug logging to stdout")
 			return
 		}
@@ -36,11 +39,15 @@ func main() {
 			noTUI = true
 			continue
 		}
+		if arg == "--mcp" {
+			mcpMode = true
+			continue
+		}
 		if arg == "--debug" {
 			debug = true
 			continue
 		}
-		if i == len(args)-1 && arg != "--no-tui" && arg != "--debug" {
+		if i == len(args)-1 && arg != "--no-tui" && arg != "--debug" && arg != "--mcp" {
 			cwd = arg
 		}
 	}
@@ -51,6 +58,15 @@ func main() {
 		os.Exit(1)
 	}
 	cwd = absPath
+
+	if mcpMode {
+		m := mcp.New(cwd)
+		if err := m.ServeStdio(); err != nil {
+			fmt.Fprintf(os.Stderr, "MCP server error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	if noTUI {
 		log.SetOutput(os.Stdout)

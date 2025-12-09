@@ -37,6 +37,9 @@ func New(targetPath string) *Scanner {
 			tools.NewGosecTool(),
 			tools.NewOSVScannerTool(),
 			tools.NewGrypeTool(),
+			tools.NewBanditPyTool(),
+			tools.NewGitleaksTool(),
+			tools.NewESLintSecurityTool(),
 		},
 	}
 }
@@ -90,13 +93,37 @@ func (s *Scanner) GetAllFindings() []tools.Finding {
 	}
 
 	var findings []tools.Finding
-	for _, output := range s.lastResult.ToolOutputs {
-		findings = append(findings, output.Critical...)
-		findings = append(findings, output.Warnings...)
-		findings = append(findings, output.Info...)
-		findings = append(findings, output.Other...)
+	for toolName, output := range s.lastResult.ToolOutputs {
+		for _, f := range output.Critical {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
+		for _, f := range output.Warnings {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
+		for _, f := range output.Info {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
+		for _, f := range output.Other {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["source"] = toolName
+			findings = append(findings, f)
+		}
 	}
-	return findings
+	return tools.CollapseFindingsToFindings(findings)
 }
 
 func (s *Scanner) GetTargetPath() string {
