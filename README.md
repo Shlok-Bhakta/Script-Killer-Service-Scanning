@@ -82,3 +82,8 @@ Script Killer can run as an MCP (Model Context Protocol) server, allowing AI ass
 - OSVScanner - https://github.com/google/osv-scanner
 - Bandit - https://github.com/PyCQA/bandit
 - Gitleaks - https://github.com/gitleaks/gitleaks
+- Eslint - https://github.com/eslint-community/eslint-plugin-security
+
+## Acknowledgement
+
+Chat GPT and Claude Code were used to aid in the development of this resource.
