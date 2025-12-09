@@ -4,13 +4,75 @@ import (
 	"scriptkiller/src/tui/commands"
 	"scriptkiller/src/tui/styles"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+type Focus int
+
+const (
+	FocusFindings Focus = iota
+	FocusDirectories
+	FocusEndpoints
+	FocusCommand
+)
+
+type findingsKeyMap struct{}
+
+func (k findingsKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+		key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rescan")),
+		key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "navigate")),
+		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch panel")),
+	}
+}
+func (k findingsKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
+
+type directoriesKeyMap struct{}
+
+func (k directoriesKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+		key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
+		key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
+		key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "navigate")),
+		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch panel")),
+	}
+}
+func (k directoriesKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
+
+type endpointsKeyMap struct{}
+
+func (k endpointsKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+		key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")),
+		key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete")),
+		key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "navigate")),
+		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch panel")),
+	}
+}
+func (k endpointsKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
+
+type commandKeyMap struct{}
+
+func (k commandKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "run")),
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch panel")),
+	}
+}
+func (k commandKeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
+
 type Model struct {
 	textInput     textinput.Model
+	help          help.Model
 	statusMessage string
 	statusError   bool
 	focused       bool
@@ -22,8 +84,11 @@ func New() Model {
 	ti.CharLimit = 256
 	ti.Prompt = ":"
 
+	h := help.New()
+
 	return Model{
 		textInput: ti,
+		help:      h,
 	}
 }
 
@@ -57,7 +122,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) View(width int, focused bool) string {
+func (m Model) View(width int, focused bool, currentFocus Focus) string {
 	theme := styles.CurrentTheme()
 
 	style := lipgloss.NewStyle().
@@ -85,8 +150,25 @@ func (m Model) View(width int, focused bool) string {
 			text = m.textInput.View()
 		}
 	} else {
-		helpText := theme.S().Subtle.Render(" q | quit • r | rescan • ↑/↓ | navigate • / | filter • : | Enter Command")
-		text = helpText
+		m.help.Width = width - 4
+		m.help.Styles.ShortKey = lipgloss.NewStyle().Foreground(theme.Accent)
+		m.help.Styles.ShortDesc = lipgloss.NewStyle().Foreground(theme.FgMuted)
+		m.help.Styles.ShortSeparator = lipgloss.NewStyle().Foreground(theme.Border)
+
+		var keyMap help.KeyMap
+		switch currentFocus {
+		case FocusFindings:
+			keyMap = findingsKeyMap{}
+		case FocusDirectories:
+			keyMap = directoriesKeyMap{}
+		case FocusEndpoints:
+			keyMap = endpointsKeyMap{}
+		case FocusCommand:
+			keyMap = commandKeyMap{}
+		default:
+			keyMap = findingsKeyMap{}
+		}
+		text = m.help.View(keyMap)
 	}
 
 	return style.Render(text)

@@ -45,3 +45,5 @@ pubspec.lock
 
 Dockerfile
 
+nix-portable
+package.json

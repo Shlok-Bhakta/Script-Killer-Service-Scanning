@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+type ScanType int
+
+const (
+	Directory = iota
+	Endpoint
+)
+
 type ScanResult struct {
 	Languages   map[string]int
 	ToolOutputs map[string]tools.ToolOutput
@@ -18,7 +25,7 @@ type ScanResult struct {
 
 type Scanner struct {
 	targetPath string
-	tools      []tools.SecurityTool
+	dirTools   []tools.SecurityTool
 	mu         sync.RWMutex
 	lastResult *ScanResult
 }
@@ -26,25 +33,35 @@ type Scanner struct {
 func New(targetPath string) *Scanner {
 	return &Scanner{
 		targetPath: targetPath,
-		tools: []tools.SecurityTool{
+		dirTools: []tools.SecurityTool{
 			tools.NewGosecTool(),
 			tools.NewOSVScannerTool(),
 			tools.NewGrypeTool(),
 			tools.NewBanditPyTool(),
 			tools.NewGitleaksTool(),
+			tools.NewESLintSecurityTool(),
 		},
 	}
 }
 
-func (s *Scanner) Scan(ctx context.Context) (*ScanResult, error) {
+func (s *Scanner) Scan(ctx context.Context, scanType ScanType) (*ScanResult, error) {
 	startTime := time.Now()
-
-	languages, err := detector.DetectProjectLanguages(s.targetPath)
-	if err != nil {
-		return nil, err
+	var languages map[string]int
+	if scanType == Directory {
+		language, err := detector.DetectProjectLanguages(s.targetPath)
+		languages = language
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	toolOutputs, errs := tools.RunAllToolsForLanguage(s.tools, languages, s.targetPath)
+	selectedTools := s.dirTools
+	switch scanType {
+	case Directory:
+		selectedTools = s.dirTools
+	}
+
+	toolOutputs, errs := tools.RunAllToolsForLanguage(selectedTools, languages, s.targetPath)
 
 	result := &ScanResult{
 		Languages:   languages,
@@ -111,4 +128,8 @@ func (s *Scanner) GetAllFindings() []tools.Finding {
 
 func (s *Scanner) GetTargetPath() string {
 	return s.targetPath
+}
+
+func (s *Scanner) SetTargetPath(path string) {
+	s.targetPath = path
 }
